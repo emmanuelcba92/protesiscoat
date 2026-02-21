@@ -184,13 +184,9 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">Devolución / Certificado</label>
-                        <select id="devolucion" required
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent bg-white">
-                            <option value="NO">NO</option>
-                            <option value="DEVUELTO">DEVUELTO</option>
-                            <option value="CERTIFICADO">CERTIFICADO ENTREGADO</option>
-                        </select>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Quién recibe</label>
+                        <input type="text" id="recibe" placeholder="Nombre de quien recibe"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent">
                     </div>
                     <div class="md:col-span-2">
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Fecha Colocación (Dejar vacío si
@@ -317,7 +313,6 @@
         function openModal() {
             form.reset();
             document.getElementById('fechaPedido').valueAsDate = new Date();
-            document.getElementById('devolucion').value = 'NO';
             document.getElementById('tubos').value = '1';
             modal.classList.add('modal-active');
         }
@@ -419,7 +414,8 @@
                 dni: document.getElementById('dni').value,
                 paciente: document.getElementById('paciente').value,
                 tubos: parseInt(document.getElementById('tubos').value),
-                devolucion: document.getElementById('devolucion').value,
+                devolucion: 'NO',
+                recibe: document.getElementById('recibe').value || '',
                 fecha_colocacion: document.getElementById('fechaColocacion').value || null, // null si está vacío
                 notas: document.getElementById('notas').value
             };
@@ -567,6 +563,7 @@
                     <td class="px-6 py-4 text-sm text-gray-900">
                         <div class="font-bold text-gray-800">${item.empresa}</div>
                         <div class="text-gray-500 text-xs mt-0.5">${item.medico}</div>
+                        ${item.recibe ? `<div class="text-turquesa font-semibold text-xs mt-1">Recibe: ${item.recibe}</div>` : ''}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-800">${item.paciente}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${item.dni}</td>
