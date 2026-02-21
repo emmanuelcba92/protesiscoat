@@ -695,6 +695,50 @@
             const pendientes = protesisData.filter(item => !item.fecha_colocacion).length;
             document.getElementById('contador-pendientes').innerText = pendientes;
         }
+
+        /**
+         * Función de utilidad para cargar datos masivos desde la consola si es necesario
+         * Uso: cargarDatosIniciales()
+         */
+        async function cargarDatosIniciales() {
+            const data = [
+                { fecha_pedido: '2025-11-27', empresa: 'general healt', medico: 'Dra Venier', paciente: 'PISTELLI MYRIAN', tubos: 1, recibe: 'JESICA' },
+                { fecha_pedido: '2025-12-12', empresa: 'general healt', medico: 'Dra Romani', paciente: 'Sanchez Bautista', tubos: 2, recibe: 'Norma' },
+                { fecha_pedido: '2025-12-12', empresa: 'general healt', medico: 'Dra Romani', paciente: 'Poggio Amelie', tubos: 2, recibe: 'Norma' },
+                { fecha_pedido: '2026-01-12', empresa: 'general healt', medico: 'Dra Venier', paciente: 'arguello alma', tubos: 2, recibe: 'adriana' },
+                { fecha_pedido: '2026-01-12', empresa: 'general healt', medico: 'Dra Romani', paciente: 'sanchez claudia', tubos: 1, recibe: 'adriana' },
+                { fecha_pedido: '2026-01-14', empresa: 'angiocor', medico: 'Dra Venier', paciente: 'montefusco maria', tubos: 2, recibe: 'adriana' },
+                { fecha_pedido: '2026-04-19', empresa: 'OPTICA CRILLON', medico: 'Dra Venier', paciente: 'DIAZ JAMES NEYMAR', tubos: 2, recibe: 'JESICA' },
+                { fecha_pedido: '2026-01-29', empresa: 'optica santa lucia', medico: 'Dra Venier', paciente: 'garnica brunatto enr', tubos: 2, recibe: 'jesica' },
+                { fecha_pedido: '2026-01-30', empresa: 'angiocor', medico: 'Dr Paredes', paciente: 'ibarra vera lucia', tubos: 1, recibe: 'jesica' },
+                { fecha_pedido: '2026-02-04', empresa: 'angiocor', medico: 'Dra Valeriani', paciente: 'pesce herrera', tubos: 2, recibe: 'adriana' },
+                { fecha_pedido: '2026-02-05', empresa: 'asismed', medico: 'Dra Romani', paciente: 'leguizamon enrique', tubos: 2, recibe: 'jesica' }
+            ];
+
+            if (!confirm(`¿Deseas cargar ${data.length} registros automáticamente?`)) return;
+
+            console.log("Iniciando carga masiva...");
+            for (const item of data) {
+                const fullItem = {
+                    ...item,
+                    dni: '',
+                    devolucion: 'NO',
+                    fecha_colocacion: null,
+                    notas: 'Carga masiva inicial'
+                };
+
+                try {
+                    if (db) {
+                        await db.collection('protesis').add(fullItem);
+                        console.log(`✅ Cargado: ${item.paciente}`);
+                    }
+                } catch (e) {
+                    console.error(`❌ Error con ${item.paciente}:`, e);
+                }
+            }
+            alert("Carga masiva finalizada. La página se recargará.");
+            location.reload();
+        }
     </script>
 </body>
 
