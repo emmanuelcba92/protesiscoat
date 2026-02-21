@@ -53,9 +53,19 @@
 
         <!-- Acciones (Buscador y Botón) -->
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-            <div class="relative w-full sm:w-1/3">
-                <input type="text" id="searchInput" placeholder="Buscar paciente, médico o DNI..."
-                    class="w-full pl-4 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent transition shadow-sm">
+            <div class="flex flex-col sm:flex-row w-full sm:w-2/3 gap-4">
+                <div class="relative w-full sm:w-1/2">
+                    <input type="text" id="searchInput" placeholder="Buscar paciente, médico o DNI..."
+                        class="w-full pl-4 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent transition shadow-sm">
+                </div>
+                <div class="relative w-full sm:w-1/2">
+                    <select id="statusFilter"
+                        class="w-full pl-4 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent transition shadow-sm bg-white font-medium text-gray-700">
+                        <option value="PENDIENTES">Vista: Pendientes (Predeterminado)</option>
+                        <option value="FINALIZADOS">Vista: Entregados / Devueltos</option>
+                        <option value="TODOS">Vista: Todos los registros</option>
+                    </select>
+                </div>
             </div>
             <button onclick="openModal()"
                 class="w-full sm:w-auto bg-turquesa hover:bg-teal-700 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:shadow-lg transition duration-200">
@@ -275,9 +285,10 @@
             fetchData();
 
             // Event listener buscador en tiempo real
-            document.getElementById('searchInput').addEventListener('input', (e) => {
-                renderTable(e.target.value);
-            });
+            document.getElementById('searchInput').addEventListener('input', () => renderTable());
+
+            // Event listener filtro de estado
+            document.getElementById('statusFilter').addEventListener('change', () => renderTable());
         });
 
         // ==========================
@@ -487,17 +498,32 @@
             return fechaString;
         }
 
-        function renderTable(searchTerm = '') {
+        function renderTable() {
             const tbody = document.getElementById('tableBody');
             tbody.innerHTML = '';
 
-            // Filtrado de datos por el buscador
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+
+            // Filtrado de datos por el buscador y estado
             const filteredData = protesisData.filter(item => {
-                const term = searchTerm.toLowerCase();
-                return (item.paciente && item.paciente.toLowerCase().includes(term)) ||
-                    (item.medico && item.medico.toLowerCase().includes(term)) ||
-                    (item.dni && item.dni.toString().includes(term)) ||
-                    (item.empresa && item.empresa.toLowerCase().includes(term));
+                // Filtro de estado
+                let statusMatch = true;
+                if (statusFilter === 'PENDIENTES') {
+                    statusMatch = item.devolucion === 'NO' || !item.devolucion;
+                } else if (statusFilter === 'FINALIZADOS') {
+                    statusMatch = item.devolucion === 'DEVUELTO' || item.devolucion === 'CERTIFICADO';
+                }
+
+                if (!statusMatch) return false;
+
+                // Filtro de búsqueda textual
+                if (!searchTerm) return true;
+
+                return (item.paciente && item.paciente.toLowerCase().includes(searchTerm)) ||
+                    (item.medico && item.medico.toLowerCase().includes(searchTerm)) ||
+                    (item.dni && item.dni.toString().includes(searchTerm)) ||
+                    (item.empresa && item.empresa.toLowerCase().includes(searchTerm));
             });
 
             if (filteredData.length === 0) {
