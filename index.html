@@ -65,6 +65,10 @@
                 color: black !important;
             }
 
+            .print-page:last-child {
+                page-break-after: auto !important;
+            }
+
             .no-print {
                 display: none !important;
             }
@@ -838,11 +842,16 @@
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-center font-medium">${item.tubos}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-center">${devolucionBadge}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm">
-                        ${isPendiente
-                        ? `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-50 text-amber-600 border border-amber-200">
-                                 <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Pendiente
-                               </span>`
-                        : `<span class="text-gray-800 font-medium">${formatearFecha(item.fecha_colocacion)}</span>`}
+                        ${item.fecha_colocacion
+                        ? `<span class="text-gray-800 font-medium">${formatearFecha(item.fecha_colocacion)}</span>`
+                        : (item.devolucion === 'MATERIAL_DEVUELTO'
+                            ? '<span class="text-rose-500 font-bold text-xs">SUSPENDIDA / DEVUELTO</span>'
+                            : (item.devolucion === 'CERTIFICADO_ENTREGADO'
+                                ? '<span class="text-blue-500 font-bold text-xs">FINALIZADA</span>'
+                                : `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-50 text-amber-600 border border-amber-200">
+                                         <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Pendiente
+                                       </span>`))
+                    }
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium flex gap-2">
                         <button class="text-turquesa hover:text-teal-900 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-md transition disabled:opacity-50" 
@@ -878,8 +887,14 @@
         function updateCounters() {
             // Total
             document.getElementById('contador-total').innerText = protesisData.length;
-            // Pendientes (no tienen fecha de colocación)
-            const pendientes = protesisData.filter(item => !item.fecha_colocacion).length;
+
+            // Pendientes: No tienen fecha de colocación Y no han sido ni devueltos ni entregados
+            const pendientes = protesisData.filter(item =>
+                !item.fecha_colocacion &&
+                item.devolucion !== 'CERTIFICADO_ENTREGADO' &&
+                item.devolucion !== 'MATERIAL_DEVUELTO'
+            ).length;
+
             document.getElementById('contador-pendientes').innerText = pendientes;
         }
 
