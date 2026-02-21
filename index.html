@@ -157,11 +157,12 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">Devolución</label>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Devolución / Certificado</label>
                         <select id="devolucion" required
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent bg-white">
                             <option value="NO">NO</option>
-                            <option value="SI">SI</option>
+                            <option value="DEVUELTO">DEVUELTO</option>
+                            <option value="CERTIFICADO">CERTIFICADO ENTREGADO</option>
                         </select>
                     </div>
                     <div class="md:col-span-2">
@@ -186,6 +187,54 @@
                         class="px-5 py-2.5 bg-turquesa text-white font-medium rounded-lg hover:bg-teal-700 shadow-md transition duration-150"
                         id="btnGuardar">
                         Guardar Prótesis
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Edición -->
+    <div id="editModal"
+        class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden justify-center items-center z-50 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden transform transition-all">
+            <div class="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-gray-50">
+                <h3 class="text-xl font-bold text-gray-800">Actualizar Estado</h3>
+                <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-700 transition">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+
+            <form id="editForm" class="p-6" onsubmit="handleEditSubmit(event)">
+                <input type="hidden" id="editId">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Nueva Fecha Colocación</label>
+                        <input type="date" id="editFechaColocacion"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent">
+                        <p class="text-xs text-gray-500 mt-1">Borrar si se suspende/reprograma</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Estado (Tubos /
+                            Certificado)</label>
+                        <select id="editDevolucion" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent bg-white">
+                            <option value="NO">NO</option>
+                            <option value="DEVUELTO">DEVUELTO</option>
+                            <option value="CERTIFICADO">CERTIFICADO ENTREGADO</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end gap-3 pt-4 border-t border-gray-100">
+                    <button type="button" onclick="closeEditModal()"
+                        class="px-5 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition duration-150">Cancelar</button>
+                    <button type="submit"
+                        class="px-5 py-2.5 bg-turquesa text-white font-medium rounded-lg hover:bg-teal-700 shadow-md transition duration-150"
+                        id="btnGuardarEdit">
+                        Actualizar
                     </button>
                 </div>
             </form>
@@ -351,6 +400,80 @@
         }
 
         // ==========================
+        // EDICIÓN Y ELIMINACIÓN
+        // ==========================
+        const modalEdit = document.getElementById('editModal');
+        const formEdit = document.getElementById('editForm');
+
+        function openEditModal(id, fechaColocacion, devolucion) {
+            document.getElementById('editId').value = id;
+            document.getElementById('editFechaColocacion').value = fechaColocacion;
+            document.getElementById('editDevolucion').value = devolucion === 'SI' ? 'DEVUELTO' : devolucion;
+            modalEdit.classList.add('modal-active');
+        }
+
+        function closeEditModal() {
+            modalEdit.classList.remove('modal-active');
+        }
+
+        async function handleEditSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('editId').value;
+            const nuevaFecha = document.getElementById('editFechaColocacion').value || null;
+            const nuevaDevolucion = document.getElementById('editDevolucion').value;
+
+            const btn = document.getElementById('btnGuardarEdit');
+            const txtOriginal = btn.innerText;
+            btn.innerText = 'Actualizando...';
+            btn.disabled = true;
+
+            try {
+                if (db) {
+                    await db.collection('protesis').doc(id).update({
+                        fecha_colocacion: nuevaFecha,
+                        devolucion: nuevaDevolucion
+                    });
+                }
+
+                // Actualizar estado local
+                const idx = protesisData.findIndex(p => p.id === id);
+                if (idx !== -1) {
+                    protesisData[idx].fecha_colocacion = nuevaFecha;
+                    protesisData[idx].devolucion = nuevaDevolucion;
+                }
+
+                renderTable();
+                updateCounters();
+                closeEditModal();
+            } catch (error) {
+                console.error("Error al actualizar:", error);
+                alert("Hubo un error al actualizar.");
+            } finally {
+                btn.innerText = txtOriginal;
+                btn.disabled = false;
+            }
+        }
+
+        async function deleteData(id) {
+            if (!confirm("¿Estás seguro de que deseas eliminar este pedido? Esta acción no se puede deshacer.")) return;
+
+            try {
+                if (db) {
+                    await db.collection('protesis').doc(id).delete();
+                }
+
+                // Actualizar estado local
+                protesisData = protesisData.filter(p => p.id !== id);
+
+                renderTable();
+                updateCounters();
+            } catch (error) {
+                console.error("Error al eliminar:", error);
+                alert("Hubo un error al eliminar.");
+            }
+        }
+
+        // ==========================
         // RENDERIZADO VISUAL
         // ==========================
 
@@ -389,9 +512,12 @@
                 const isPendiente = !item.fecha_colocacion;
 
                 // Badge visual para devolución
-                const devolucionBadge = item.devolucion === 'SI'
-                    ? '<span class="px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-md bg-emerald-100 text-emerald-800">SI</span>'
-                    : '<span class="px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-md bg-gray-100 text-gray-700">NO</span>';
+                let devolucionBadge = '<span class="px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-md bg-gray-100 text-gray-700">NO</span>';
+                if (item.devolucion === 'SI' || item.devolucion === 'DEVUELTO') {
+                    devolucionBadge = '<span class="px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-md bg-emerald-100 text-emerald-800">DEVUELTO</span>';
+                } else if (item.devolucion === 'CERTIFICADO') {
+                    devolucionBadge = '<span class="px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-md bg-blue-100 text-blue-800">CERTIF.</span>';
+                }
 
                 tr.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium">${formatearFecha(item.fecha_pedido)}</td>
@@ -410,11 +536,19 @@
                                </span>`
                         : `<span class="text-gray-800 font-medium">${formatearFecha(item.fecha_colocacion)}</span>`}
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium flex gap-2">
                         <button class="text-turquesa hover:text-teal-900 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-md transition disabled:opacity-50" 
                                 onclick="alert('Notas: ${item.notas || 'No hay notas registradas para este pedido.'}')"
                                 ${!item.notas ? 'disabled title="Sin notas"' : ''}>
-                            Ver Notas
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </button>
+                        <button class="text-amber-600 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-md transition" 
+                                onclick="openEditModal('${item.id}', '${item.fecha_colocacion || ''}', '${item.devolucion}')" title="Editar Estado">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        </button>
+                        <button class="text-rose-600 hover:text-rose-900 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-md transition" 
+                                onclick="deleteData('${item.id}')" title="Eliminar">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                         </button>
                     </td>
                 `;
