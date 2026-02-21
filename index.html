@@ -82,6 +82,15 @@
             #section-to-print {
                 display: block;
             }
+
+            input.force-uppercase {
+                text-transform: uppercase;
+            }
+        }
+
+        /* Forzar mayúsculas visualmente en el input y en la tabla */
+        .uppercase-text {
+            text-transform: uppercase;
         }
     </style>
 </head>
@@ -199,8 +208,8 @@
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Empresa</label>
-                        <input type="text" id="empresa" required placeholder="Ej: ImplantTech" list="empresasList"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent">
+                        <input type="text" id="empresa" required placeholder="Ej: IMPLANTTECH" list="empresasList"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent uppercase-text">
                         <datalist id="empresasList">
                             <option value="Angiocor"></option>
                             <option value="General Healt"></option>
@@ -242,8 +251,8 @@
                     </div>
                     <div class="md:col-span-2">
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Nombre del Paciente</label>
-                        <input type="text" id="paciente" required placeholder="Apellidos y Nombres"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent">
+                        <input type="text" id="paciente" required placeholder="APELLIDOS Y NOMBRES"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent uppercase-text">
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Cantidad Tubos</label>
@@ -404,15 +413,31 @@
 
                             // Autocompletar el campo con el nombre completo
                             if (match) {
-                                this.value = match.value;
+                                this.value = match.value.toUpperCase();
                             }
                         }
 
                         // Opcional: enfocar el siguiente cambpo para acelerar la carga
-                        if (this.id === 'empresa') document.getElementById('medico').focus();
+                        if (this.id === 'empresa') {
+                            this.value = this.value.toUpperCase();
+                            document.getElementById('medico').focus();
+                        }
                         else if (this.id === 'medico') document.getElementById('dni').focus();
                     }
                 });
+
+                // Forzar mayúsculas mientras escriben
+                input.addEventListener('input', function () {
+                    if (this.id === 'empresa' || this.id === 'paciente') {
+                        this.value = this.value.toUpperCase();
+                    }
+                });
+            });
+
+            // Forzar mayúsculas en paciente (que no tiene list)
+            const inputPaciente = document.getElementById('paciente');
+            inputPaciente.addEventListener('input', function () {
+                this.value = this.value.toUpperCase();
             });
 
             // Opcional: evitar también que Enter envíe el form en otros inputs 
@@ -421,6 +446,12 @@
                 input.addEventListener('keydown', function (e) {
                     if (e.key === 'Enter') e.preventDefault();
                 });
+                // Forzar mayúsculas si es el campo de paciente
+                if (input.id === 'paciente') {
+                    input.addEventListener('input', function () {
+                        this.value = this.value.toUpperCase();
+                    });
+                }
             });
         });
 
@@ -721,10 +752,14 @@
                     
                     <div style="margin-bottom: 4rem;">
                         ${listaPacientes.map(p => `
-                            <div style="margin-bottom: 0.8rem; font-size: 1.1rem;">
-                                • <strong>${p.paciente.toUpperCase()}</strong> ${p.dni ? `(DNI: ${p.dni})` : ''}
+                            <div style="margin-bottom: 0.8rem; font-size: 1.1rem; border-bottom: 1px dashed #eee; padding-bottom: 5px;">
+                                • <span contenteditable="true"><strong>${p.paciente.toUpperCase()}</strong></span> 
+                                <span contenteditable="true">${p.dni ? `(DNI: ${p.dni})` : '(DNI: ________)'}</span>
                             </div>
                         `).join('')}
+                    </div>
+                    <div style="background: #fff9c4; padding: 10px; border-radius: 5px; margin-bottom: 2rem; border: 1px solid #fbc02d; font-size: 0.9rem;" class="no-print">
+                        <strong>💡 Tip:</strong> Puedes hacer clic sobre el nombre o el DNI arriba para editarlos directamente si necesitas corregir algo antes de imprimir.
                     </div>
                     
                     <div style="margin-top: 5rem; font-size: 1.1rem;">
