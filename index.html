@@ -16,9 +16,8 @@
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <script type="text/javascript">
         (function () {
-            emailjs.init({
-                publicKey: "ZI8efqGOOC1hJM07-",
-            });
+            // Inicialización simple
+            emailjs.init("ZI8efqGOOC1hJM07-");
         })();
     </script>
 
@@ -453,9 +452,7 @@
 
                 // Enviar notificación por email
                 try {
-                    // Para que esto funcione, en EmailJS:
-                    // 1. Crea un Service y anota el ID
-                    // 2. Crea un Template con las variables {{paciente}}, {{medico}}, {{empresa}}
+                    // Enviamos los datos asegurando que coincidan con las llaves {{}} de tu plantilla
                     await emailjs.send("service_o4o0u4r", "template_qb5ydej", {
                         paciente: newData.paciente,
                         dni: newData.dni,
@@ -464,10 +461,14 @@
                         tubos: newData.tubos,
                         recibe: newData.recibe || 'N/A',
                         notas: newData.notas || 'Sin notas'
-                    });
-                    console.log("Email de notificación enviado correctamente.");
+                    }, "ZI8efqGOOC1hJM07-"); // Pasamos la llave pública también aquí por seguridad
+                    console.log("✅ Email de notificación enviado correctamente.");
                 } catch (emailError) {
-                    console.error('Error al enviar email (Esto no afecta el guardado en la BD):', emailError);
+                    console.error('❌ Error EmailJS:', emailError);
+                    // Si el servidor nos dio un mensaje de error, lo mostramos en la consola
+                    if (emailError.text) {
+                        console.error('Detalle técnico del error:', emailError.text);
+                    }
                 }
 
                 renderTable();
