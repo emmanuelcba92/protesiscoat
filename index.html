@@ -38,6 +38,47 @@
         .modal-active {
             display: flex !important;
         }
+
+        /* Estilos para Impresión */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+
+            #section-to-print,
+            #section-to-print * {
+                visibility: visible;
+            }
+
+            #section-to-print {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white;
+            }
+
+            .print-page {
+                padding: 1cm;
+                min-height: 29.7cm;
+                page-break-after: always;
+                color: black !important;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+        }
+
+        #section-to-print {
+            display: none;
+        }
+
+        @media print {
+            #section-to-print {
+                display: block;
+            }
+        }
     </style>
 </head>
 
@@ -71,7 +112,9 @@
                     <select id="statusFilter"
                         class="w-full pl-4 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent transition shadow-sm bg-white font-medium text-gray-700">
                         <option value="PENDIENTES">Vista: Pendientes (Predeterminado)</option>
-                        <option value="FINALIZADOS">Vista: Entregados / Devueltos</option>
+                        <option value="LISTOS">Vista: Certificados Listos</option>
+                        <option value="PARA_DEVOLVER">Vista: Para Devolver</option>
+                        <option value="FINALIZADOS">Vista: Historial (Entregados/Devueltos)</option>
                         <option value="TODOS">Vista: Todos los registros</option>
                     </select>
                 </div>
@@ -88,6 +131,10 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
+                            <th scope="col" class="px-4 py-4 text-center">
+                                <input type="checkbox" id="selectAll"
+                                    class="w-4 h-4 text-turquesa rounded border-gray-300 focus:ring-turquesa">
+                            </th>
                             <th scope="col"
                                 class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
                                 Fecha</th>
@@ -269,9 +316,11 @@
                             Certificado)</label>
                         <select id="editDevolucion" required
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent bg-white">
-                            <option value="NO">NO</option>
-                            <option value="DEVUELTO">DEVUELTO</option>
-                            <option value="CERTIFICADO">CERTIFICADO ENTREGADO</option>
+                            <option value="NO">NO (Material en clínica)</option>
+                            <option value="CERTIFICADO_LISTO">CERTIFICADO LISTO (En clínica)</option>
+                            <option value="CERTIFICADO_ENTREGADO">CERTIFICADO ENTREGADO</option>
+                            <option value="DEVUELTO">PARA DEVOLVER (Material sobrante)</option>
+                            <option value="MATERIAL_DEVUELTO">MATERIAL DEVUELTO</option>
                         </select>
                     </div>
                 </div>
@@ -594,6 +643,119 @@
         // ==========================
 
         // Helper para mostrar fechas de AAAA-MM-DD a DD/MM/AAAA sin offset de zona horaria
+        // Barra de acciones masivas
+        const bulkActionBar = document.createElement('div');
+        bulkActionBar.id = 'bulkActionBar';
+        bulkActionBar.className = "fixed bottom-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-6 z-[60] transform translate-y-32 transition-transform duration-300 border border-gray-700";
+        bulkActionBar.innerHTML = `
+            <span class="text-sm font-medium"><span id="selectedCount">0</span> seleccionados</span>
+            <div class="h-6 w-px bg-gray-700"></div>
+            <button onclick="handleBulkPrint('CERTIFICADO')" class="flex items-center gap-2 bg-turquesa hover:bg-teal-600 px-4 py-2 rounded-lg text-sm font-bold transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                Constancia Certificado
+            </button>
+            <button onclick="handleBulkPrint('DEVOLUCION')" class="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 px-4 py-2 rounded-lg text-sm font-bold transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z"></path></svg>
+                Constancia Devolución
+            </button>
+        `;
+        document.body.appendChild(bulkActionBar);
+
+        function updateBulkBar() {
+            const selected = document.querySelectorAll('.item-checkbox:checked').length;
+            const bar = document.getElementById('bulkActionBar');
+            document.getElementById('selectedCount').innerText = selected;
+
+            if (selected > 0) {
+                bar.classList.remove('translate-y-32');
+            } else {
+                bar.classList.add('translate-y-32');
+            }
+        }
+
+        async function handleBulkPrint(type) {
+            const selectedChecks = document.querySelectorAll('.item-checkbox:checked');
+            const selectedIds = Array.from(selectedChecks).map(cb => cb.value);
+            const items = protesisData.filter(p => selectedIds.includes(p.id));
+
+            if (items.length === 0) return;
+
+            // Agrupar por empresa
+            const itemsByCompany = items.reduce((acc, item) => {
+                if (!acc[item.empresa]) acc[item.empresa] = [];
+                acc[item.empresa].push(item);
+                return acc;
+            }, {});
+
+            const printContainer = document.getElementById('section-to-print');
+            printContainer.innerHTML = '';
+
+            const hoy = new Date();
+            const fechaString = `Córdoba, ${hoy.getDate()} de ${["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"][hoy.getMonth()]} de ${hoy.getFullYear()}`;
+
+            for (const [empresa, listaPacientes] of Object.entries(itemsByCompany)) {
+                const page = document.createElement('div');
+                page.className = 'print-page';
+
+                const titulo = type === 'CERTIFICADO' ? 'Constancia de entrega de certificado de implante' : 'Constancia de devolución de material';
+                const parrafo = type === 'CERTIFICADO'
+                    ? `Por la presente se hace entrega a la empresa <strong>${empresa}</strong> de los siguientes certificados, los cuales fueron oportunamente solicitados para el paciente:`
+                    : `Por la presente se hace entrega a la empresa <strong>${empresa}</strong> de los siguientes materiales, los cuales fueron oportunamente solicitados para el paciente:`;
+
+                const footerLabel = type === 'CERTIFICADO' ? 'Recibe:' : 'Se reciben: <br><br> Recibe:';
+
+                page.innerHTML = `
+                    <div style="text-align: center; margin-bottom: 2rem;">
+                        <img src="logo coat.png" style="max-height: 80px; margin-bottom: 0.5rem;">
+                    </div>
+                    
+                    <div style="text-align: right; margin-bottom: 3rem; font-size: 1.1rem;">${fechaString}</div>
+                    
+                    <h2 style="text-align: center; font-size: 1.5rem; font-weight: bold; margin-bottom: 3rem; text-decoration: underline;">${titulo}</h2>
+                    
+                    <p style="margin-bottom: 1.5rem; line-height: 1.6; font-size: 1.1rem;">${parrafo}</p>
+                    
+                    <div style="margin-bottom: 4rem;">
+                        ${listaPacientes.map(p => `
+                            <div style="margin-bottom: 0.8rem; font-size: 1.1rem;">
+                                • <strong>${p.paciente.toUpperCase()}</strong> ${p.dni ? `(DNI: ${p.dni})` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div style="margin-top: 5rem; font-size: 1.1rem;">
+                        <p style="margin-bottom: 3rem;">${footerLabel} ___________________________</p>
+                        <p>Firma: ___________________________</p>
+                    </div>
+                `;
+                printContainer.appendChild(page);
+            }
+
+            window.print();
+
+            // Preguntar si desea actualizar el estado masivamente
+            const nuevoEstado = type === 'CERTIFICADO' ? 'CERTIFICADO_ENTREGADO' : 'MATERIAL_DEVUELTO';
+            if (confirm(`¿Deseas marcar los ${items.length} registros seleccionados como "${nuevoEstado.replace('_', ' ')}"?`)) {
+
+                for (const id of selectedIds) {
+                    try {
+                        if (db) {
+                            await db.collection('protesis').doc(id).update({ devolucion: nuevoEstado });
+                        }
+                        const idx = protesisData.findIndex(p => p.id === id);
+                        if (idx !== -1) protesisData[idx].devolucion = nuevoEstado;
+                    } catch (e) {
+                        console.error("Error actualizando masivamente:", e);
+                    }
+                }
+
+                // Limpiar selección
+                document.getElementById('selectAll').checked = false;
+                renderTable();
+                updateCounters();
+            }
+        }
+
         function formatearFecha(fechaString) {
             if (!fechaString) return '-';
             const partes = fechaString.split('-');
@@ -616,8 +778,12 @@
                 let statusMatch = true;
                 if (statusFilter === 'PENDIENTES') {
                     statusMatch = item.devolucion === 'NO' || !item.devolucion;
+                } else if (statusFilter === 'LISTOS') {
+                    statusMatch = item.devolucion === 'CERTIFICADO_LISTO';
+                } else if (statusFilter === 'PARA_DEVOLVER') {
+                    statusMatch = item.devolucion === 'DEVUELTO';
                 } else if (statusFilter === 'FINALIZADOS') {
-                    statusMatch = item.devolucion === 'DEVUELTO' || item.devolucion === 'CERTIFICADO';
+                    statusMatch = item.devolucion === 'CERTIFICADO_ENTREGADO' || item.devolucion === 'MATERIAL_DEVUELTO';
                 }
 
                 if (!statusMatch) return false;
@@ -640,17 +806,27 @@
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-50 transition duration-150 group";
 
+                // Si el item está seleccionado (mantener estado visual si ya estaba)
+                const isSelected = document.querySelector(`.item-checkbox[value="${item.id}"]`)?.checked;
+
                 const isPendiente = !item.fecha_colocacion;
 
                 // Badge visual para devolución
                 let devolucionBadge = '<span class="px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-md bg-gray-100 text-gray-700">NO</span>';
-                if (item.devolucion === 'SI' || item.devolucion === 'DEVUELTO') {
-                    devolucionBadge = '<span class="px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-md bg-emerald-100 text-emerald-800">DEVUELTO</span>';
-                } else if (item.devolucion === 'CERTIFICADO') {
-                    devolucionBadge = '<span class="px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-md bg-blue-100 text-blue-800">CERTIF.</span>';
+                if (item.devolucion === 'CERTIFICADO_LISTO') {
+                    devolucionBadge = '<span class="px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-md bg-amber-100 text-amber-700">CERTIF. LISTO</span>';
+                } else if (item.devolucion === 'CERTIFICADO_ENTREGADO') {
+                    devolucionBadge = '<span class="px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-md bg-blue-100 text-blue-800">CERTIF. ENTREGADO</span>';
+                } else if (item.devolucion === 'DEVUELTO' || item.devolucion === 'SI') {
+                    devolucionBadge = '<span class="px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-md bg-rose-100 text-rose-700">PARA DEVOLVER</span>';
+                } else if (item.devolucion === 'MATERIAL_DEVUELTO') {
+                    devolucionBadge = '<span class="px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-md bg-emerald-100 text-emerald-800">MAT. DEVUELTO</span>';
                 }
 
                 tr.innerHTML = `
+                    <td class="px-4 py-4 text-center">
+                        <input type="checkbox" class="item-checkbox w-4 h-4 text-turquesa rounded border-gray-300 focus:ring-turquesa" value="${item.id}" ${isSelected ? 'checked' : ''} onchange="updateBulkBar()">
+                    </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium">${formatearFecha(item.fecha_pedido)}</td>
                     <td class="px-6 py-4 text-sm text-gray-900">
                         <div class="font-bold text-gray-800">${item.empresa}</div>
@@ -687,6 +863,17 @@
                 tbody.appendChild(tr);
             });
         }
+
+        // Event listener para el botón "Seleccionar todos"
+        document.addEventListener('change', (e) => {
+            if (e.target.id === 'selectAll') {
+                const checked = e.target.checked;
+                document.querySelectorAll('.item-checkbox').forEach(cb => {
+                    cb.checked = checked;
+                });
+                updateBulkBar();
+            }
+        });
 
         function updateCounters() {
             // Total
@@ -740,6 +927,9 @@
             location.reload();
         }
     </script>
+
+    <!-- Sección oculta para impresión -->
+    <div id="section-to-print"></div>
 </body>
 
 </html>
