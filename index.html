@@ -12,6 +12,16 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
 
+    <!-- EmailJS CDN para notificaciones por email -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script type="text/javascript">
+        (function () {
+            emailjs.init({
+                publicKey: "TU_PUBLIC_KEY_EMAILJS",
+            });
+        })();
+    </script>
+
     <!-- Configuración Custom de Tailwind -->
     <script>
         tailwind.config = {
@@ -440,6 +450,25 @@
                 // Agregar el registro recién guardado al estado local con su nuevo ID autogenerado
                 newData.id = docRef.id;
                 protesisData.unshift(newData);
+
+                // Enviar notificación por email
+                try {
+                    // Para que esto funcione, en EmailJS:
+                    // 1. Crea un Service y anota el ID
+                    // 2. Crea un Template con las variables {{paciente}}, {{medico}}, {{empresa}}
+                    await emailjs.send("TU_SERVICE_ID", "TU_TEMPLATE_ID", {
+                        paciente: newData.paciente,
+                        dni: newData.dni,
+                        medico: newData.medico,
+                        empresa: newData.empresa,
+                        tubos: newData.tubos,
+                        recibe: newData.recibe || 'N/A',
+                        notas: newData.notas || 'Sin notas'
+                    });
+                    console.log("Email de notificación enviado correctamente.");
+                } catch (emailError) {
+                    console.error('Error al enviar email (Esto no afecta el guardado en la BD):', emailError);
+                }
 
                 renderTable();
                 updateCounters();
