@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control de Prótesis</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Supabase CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
+
+    <!-- Firebase Compat SDKs para simplicidad sin build tools -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+
     <!-- Configuración Custom de Tailwind -->
     <script>
         tailwind.config = {
@@ -28,11 +31,13 @@
         }
     </style>
 </head>
+
 <body class="bg-gray-100 font-sans text-gray-800 min-h-screen">
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- Encabezado -->
-        <header class="flex flex-col sm:flex-row justify-between items-center mb-8 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <header
+            class="flex flex-col sm:flex-row justify-between items-center mb-8 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
             <h1 class="text-3xl font-bold text-gray-800 mb-4 sm:mb-0">Control de Prótesis</h1>
             <div class="flex gap-8">
                 <div class="text-center">
@@ -49,10 +54,11 @@
         <!-- Acciones (Buscador y Botón) -->
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
             <div class="relative w-full sm:w-1/3">
-                <input type="text" id="searchInput" placeholder="Buscar paciente, médico o DNI..." 
-                       class="w-full pl-4 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent transition shadow-sm">
+                <input type="text" id="searchInput" placeholder="Buscar paciente, médico o DNI..."
+                    class="w-full pl-4 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent transition shadow-sm">
             </div>
-            <button onclick="openModal()" class="w-full sm:w-auto bg-turquesa hover:bg-teal-700 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:shadow-lg transition duration-200">
+            <button onclick="openModal()"
+                class="w-full sm:w-auto bg-turquesa hover:bg-teal-700 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:shadow-lg transition duration-200">
                 + Nueva Prótesis
             </button>
         </div>
@@ -63,19 +69,37 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha</th>
-                            <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Empresa / Médico</th>
-                            <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Paciente</th>
-                            <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">DNI</th>
-                            <th scope="col" class="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Tubos</th>
-                            <th scope="col" class="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Devol.</th>
-                            <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Colocación</th>
-                            <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
+                            <th scope="col"
+                                class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                Fecha</th>
+                            <th scope="col"
+                                class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                Empresa / Médico</th>
+                            <th scope="col"
+                                class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                Paciente</th>
+                            <th scope="col"
+                                class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">DNI
+                            </th>
+                            <th scope="col"
+                                class="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                Tubos</th>
+                            <th scope="col"
+                                class="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                Devol.</th>
+                            <th scope="col"
+                                class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                Colocación</th>
+                            <th scope="col"
+                                class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody" class="bg-white divide-y divide-gray-200">
                         <!-- Filas de datos -->
-                        <tr><td colspan="8" class="px-6 py-8 text-center text-gray-500">Cargando datos...</td></tr>
+                        <tr>
+                            <td colspan="8" class="px-6 py-8 text-center text-gray-500">Cargando datos...</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -83,40 +107,50 @@
     </div>
 
     <!-- Modal de Carga -->
-    <div id="protesisModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden justify-center items-center z-50 backdrop-blur-sm transition-opacity">
+    <div id="protesisModal"
+        class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden justify-center items-center z-50 backdrop-blur-sm transition-opacity">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden transform transition-all">
             <div class="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-gray-50">
                 <h3 class="text-xl font-bold text-gray-800">Cargar Nueva Prótesis</h3>
                 <button onclick="closeModal()" class="text-gray-400 hover:text-gray-700 transition">
-                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
                 </button>
             </div>
-            
+
             <form id="protesisForm" class="p-6" onsubmit="handleFormSubmit(event)">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Fecha de Pedido</label>
-                        <input type="date" id="fechaPedido" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent">
+                        <input type="date" id="fechaPedido" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent">
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Empresa</label>
-                        <input type="text" id="empresa" required placeholder="Ej: ImplantTech" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent">
+                        <input type="text" id="empresa" required placeholder="Ej: ImplantTech"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent">
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Médico</label>
-                        <input type="text" id="medico" required placeholder="Dr. / Dra." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent">
+                        <input type="text" id="medico" required placeholder="Dr. / Dra."
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent">
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">DNI Paciente</label>
-                        <input type="text" id="dni" required placeholder="Sin puntos" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent">
+                        <input type="text" id="dni" required placeholder="Sin puntos"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent">
                     </div>
                     <div class="md:col-span-2">
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Nombre del Paciente</label>
-                        <input type="text" id="paciente" required placeholder="Apellidos y Nombres" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent">
+                        <input type="text" id="paciente" required placeholder="Apellidos y Nombres"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent">
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Cantidad Tubos</label>
-                        <select id="tubos" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent bg-white">
+                        <select id="tubos" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent bg-white">
                             <option value="1">1</option>
                             <option value="2">2</option>
                             <option value="3">3</option>
@@ -124,26 +158,33 @@
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Devolución</label>
-                        <select id="devolucion" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent bg-white">
+                        <select id="devolucion" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent bg-white">
                             <option value="NO">NO</option>
                             <option value="SI">SI</option>
                         </select>
                     </div>
                     <div class="md:col-span-2">
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">Fecha Colocación (Dejar vacío si está pendiente)</label>
-                        <input type="date" id="fechaColocacion" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent">
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Fecha Colocación (Dejar vacío si
+                            está pendiente)</label>
+                        <input type="date" id="fechaColocacion"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent">
                     </div>
                     <div class="md:col-span-2">
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Notas / Observaciones</label>
-                        <textarea id="notas" rows="2" placeholder="Información adicional del pedido..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent"></textarea>
+                        <textarea id="notas" rows="2" placeholder="Información adicional del pedido..."
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent"></textarea>
                     </div>
                 </div>
-                
+
                 <div class="mt-8 flex justify-end gap-3 pt-4 border-t border-gray-100">
-                    <button type="button" onclick="closeModal()" class="px-5 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition duration-150">
+                    <button type="button" onclick="closeModal()"
+                        class="px-5 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition duration-150">
                         Cancelar
                     </button>
-                    <button type="submit" class="px-5 py-2.5 bg-turquesa text-white font-medium rounded-lg hover:bg-teal-700 shadow-md transition duration-150" id="btnGuardar">
+                    <button type="submit"
+                        class="px-5 py-2.5 bg-turquesa text-white font-medium rounded-lg hover:bg-teal-700 shadow-md transition duration-150"
+                        id="btnGuardar">
                         Guardar Prótesis
                     </button>
                 </div>
@@ -154,16 +195,23 @@
     <!-- Lógica de la Aplicación -->
     <script>
         /**
-         * 1. CONFIGURACIÓN DE SUPABASE
-         * REEMPLAZA ESTAS VARIABLES CON TUS CREDENCIALES DE SUPABASE
+         * 1. CONFIGURACIÓN DE FIREBASE
+         * REEMPLAZA ESTE OBJETO CON TUS CREDENCIALES DE FIREBASE
          */
-        const SUPABASE_URL = 'URL_DE_SUPABASE';
-        const SUPABASE_ANON_KEY = 'TU_ANON_KEY';
-        
-        let supabase = null;
+        const firebaseConfig = {
+            apiKey: "AIzaSyCBm4dIubUOXCHZLE2xxZHF9MKh1dGUcBg",
+            authDomain: "cajacx-test.firebaseapp.com",
+            projectId: "cajacx-test",
+            storageBucket: "cajacx-test.firebasestorage.app",
+            messagingSenderId: "930859241568",
+            appId: "1:930859241568:web:b0073b71a921e5affff305"
+        };
+
+        let db = null;
         // Validación básica para evitar crash si no se han puesto las keys
-        if (SUPABASE_URL !== 'URL_DE_SUPABASE') {
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        if (firebaseConfig.apiKey !== 'TU_API_KEY') {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
         }
 
         // Estado local de los datos para la tabla
@@ -173,10 +221,10 @@
         document.addEventListener('DOMContentLoaded', () => {
             // Setear la fecha de hoy por defecto en el form
             document.getElementById('fechaPedido').valueAsDate = new Date();
-            
+
             // Traer datos de la base de datos
             fetchData();
-            
+
             // Event listener buscador en tiempo real
             document.getElementById('searchInput').addEventListener('input', (e) => {
                 renderTable(e.target.value);
@@ -202,18 +250,18 @@
         }
 
         // ==========================
-        // PERSISTENCIA DE DATOS
+        // PERSISTENCIA DE DATOS (FIREBASE)
         // ==========================
 
         /**
-         * Traer los datos desde Supabase
+         * Traer los datos desde Firestore
          */
         async function fetchData() {
-            if (!supabase) {
-                console.warn("⚠️ Supabase no configurado. Mostrando datos de prueba locales.");
+            if (!db) {
+                console.warn("⚠️ Firebase no configurado. Mostrando datos de prueba locales.");
                 protesisData = [
-                    { id: 1, fecha_pedido: '2026-02-20', empresa: 'ImplantTech', medico: 'Dr. Pérez', paciente: 'Juan Gómez', dni: '12345678', tubos: 2, devolucion: 'NO', fecha_colocacion: null, notas: 'Faltan tornillos' },
-                    { id: 2, fecha_pedido: '2026-02-18', empresa: 'BioMed', medico: 'Dra. López', paciente: 'María Silva', dni: '87654321', tubos: 1, devolucion: 'SI', fecha_colocacion: '2026-02-19', notas: '' }
+                    { id: '1', fecha_pedido: '2026-02-20', empresa: 'ImplantTech', medico: 'Dr. Pérez', paciente: 'Juan Gómez', dni: '12345678', tubos: 2, devolucion: 'NO', fecha_colocacion: null, notas: 'Faltan tornillos' },
+                    { id: '2', fecha_pedido: '2026-02-18', empresa: 'BioMed', medico: 'Dra. López', paciente: 'María Silva', dni: '87654321', tubos: 1, devolucion: 'SI', fecha_colocacion: '2026-02-19', notas: '' }
                 ];
                 renderTable();
                 updateCounters();
@@ -221,25 +269,24 @@
             }
 
             try {
-                // Asumiendo que la tabla en Supabase se llama "protesis"
-                const { data, error } = await supabase
-                    .from('protesis')
-                    .select('*')
-                    .order('fecha_pedido', { ascending: false });
+                // Asumiendo que la colección en Firestore se llama "protesis"
+                const snapshot = await db.collection('protesis').orderBy('fecha_pedido', 'desc').get();
 
-                if (error) throw error;
-                
-                protesisData = data || [];
+                protesisData = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
                 renderTable();
                 updateCounters();
             } catch (error) {
                 console.error('Error fetching data:', error);
-                alert('Hubo un error al cargar los datos. Verifica la consola.');
+                alert('Hubo un error al cargar los datos. Verifica la consola y las reglas de seguridad de Firestore.');
             }
         }
 
         /**
-         * Insertar un nuevo registro en Supabase
+         * Insertar un nuevo registro en Firestore
          */
         async function saveData(newData) {
             const btnGuardar = document.getElementById('btnGuardar');
@@ -248,11 +295,11 @@
             btnGuardar.disabled = true;
 
             try {
-                if (!supabase) {
+                if (!db) {
                     // Simulación de guardado para la prueba visual
-                    newData.id = Date.now();
+                    newData.id = Date.now().toString();
                     protesisData.unshift(newData);
-                    
+
                     setTimeout(() => {
                         renderTable();
                         updateCounters();
@@ -263,26 +310,18 @@
                     return;
                 }
 
-                const { data, error } = await supabase
-                    .from('protesis')
-                    .insert([newData])
-                    .select();
+                const docRef = await db.collection('protesis').add(newData);
 
-                if (error) throw error;
+                // Agregar el registro recién guardado al estado local con su nuevo ID autogenerado
+                newData.id = docRef.id;
+                protesisData.unshift(newData);
 
-                // Agregar el registro recién guardado al estado local sin recargar todo
-                if (data && data.length > 0) {
-                    protesisData.unshift(data[0]);
-                } else {
-                    fetchData(); // Fallback: Recargar datos
-                }
-                
                 renderTable();
                 updateCounters();
                 closeModal();
             } catch (error) {
                 console.error('Error saving data:', error);
-                alert('Hubo un error al guardar la prótesis. Verifica la consola.');
+                alert('Hubo un error al guardar la prótesis. Verifica la consola y las reglas de seguridad de Firestore.');
             } finally {
                 btnGuardar.innerText = textoOriginal;
                 btnGuardar.disabled = false;
@@ -294,7 +333,7 @@
         // ==========================
         async function handleFormSubmit(e) {
             e.preventDefault();
-            
+
             // Construir objeto con los datos del form
             const newData = {
                 fecha_pedido: document.getElementById('fechaPedido').value,
@@ -314,12 +353,12 @@
         // ==========================
         // RENDERIZADO VISUAL
         // ==========================
-        
+
         // Helper para mostrar fechas de AAAA-MM-DD a DD/MM/AAAA sin offset de zona horaria
         function formatearFecha(fechaString) {
             if (!fechaString) return '-';
             const partes = fechaString.split('-');
-            if(partes.length === 3) {
+            if (partes.length === 3) {
                 return `${partes[2]}/${partes[1]}/${partes[0]}`;
             }
             return fechaString;
@@ -333,9 +372,9 @@
             const filteredData = protesisData.filter(item => {
                 const term = searchTerm.toLowerCase();
                 return (item.paciente && item.paciente.toLowerCase().includes(term)) ||
-                       (item.medico && item.medico.toLowerCase().includes(term)) ||
-                       (item.dni && item.dni.toString().includes(term)) ||
-                       (item.empresa && item.empresa.toLowerCase().includes(term));
+                    (item.medico && item.medico.toLowerCase().includes(term)) ||
+                    (item.dni && item.dni.toString().includes(term)) ||
+                    (item.empresa && item.empresa.toLowerCase().includes(term));
             });
 
             if (filteredData.length === 0) {
@@ -346,11 +385,11 @@
             filteredData.forEach(item => {
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-50 transition duration-150 group";
-                
+
                 const isPendiente = !item.fecha_colocacion;
-                
+
                 // Badge visual para devolución
-                const devolucionBadge = item.devolucion === 'SI' 
+                const devolucionBadge = item.devolucion === 'SI'
                     ? '<span class="px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-md bg-emerald-100 text-emerald-800">SI</span>'
                     : '<span class="px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-md bg-gray-100 text-gray-700">NO</span>';
 
@@ -365,11 +404,11 @@
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-center font-medium">${item.tubos}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-center">${devolucionBadge}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm">
-                        ${isPendiente 
-                            ? `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-50 text-amber-600 border border-amber-200">
+                        ${isPendiente
+                        ? `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-50 text-amber-600 border border-amber-200">
                                  <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Pendiente
                                </span>`
-                            : `<span class="text-gray-800 font-medium">${formatearFecha(item.fecha_colocacion)}</span>`}
+                        : `<span class="text-gray-800 font-medium">${formatearFecha(item.fecha_colocacion)}</span>`}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button class="text-turquesa hover:text-teal-900 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-md transition disabled:opacity-50" 
@@ -392,4 +431,5 @@
         }
     </script>
 </body>
+
 </html>
