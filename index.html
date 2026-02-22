@@ -8,8 +8,17 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Firebase eliminados del frontend: la seguridad ahora está en el Backend (Node.js) -->
-    <!-- EmailJS eliminado del frontend: los envíos los realiza Nodemailer (Node.js) -->
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <!-- EmailJS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script>
+        (function () {
+            emailjs.init("ZI8efqGOOC1hJM07-");
+        })();
+    </script>
 
     <!-- SheetJS (Para Exportar a Excel) -->
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
@@ -396,14 +405,23 @@
 
     <!-- Lógica de la Aplicación -->
     <script>
-        /**
-         * URL DEL BACKEND
-         * Cambiar esta URL cuando se suba el backend a un servidor real (ej. Render, Railway)
-         */
-        const API_URL = "http://localhost:3000/api/protesis";
+        // Configuración de Firebase (Copiada de tu consola de Firebase)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCbw4diu0XCH2L22x2HF9Mxh1dOUcbg",
+            authDomain: "cajacx-test.firebaseapp.com",
+            projectId: "cajacx-test",
+            storageBucket: "cajacx-test.firebasestorage.app",
+            messagingSenderId: "930899241568",
+            appId: "1:930899241568:web:b0073b71a921e5affff305"
+        };
+
+        // Inicializar Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
 
         // Estado local de los datos para la tabla
         let protesisData = [];
+        const DELETE_PIN = '546287'; // PIN estático como en Caja CX
 
         // Inicialización al cargar la página
         document.addEventListener('DOMContentLoaded', () => {
@@ -508,34 +526,32 @@
         /**
          * Traer los datos a través del Backend
          */
-        async function fetchData() {
-            try {
-                const response = await fetch(API_URL);
-                if (!response.ok) throw new Error("Error en la respuesta del servidor");
-
-                protesisData = await response.json();
+        /**
+         * Traer los datos directamente de Firestore
+         */
+        function fetchData() {
+            db.collection('protesis').orderBy('fecha_pedido', 'desc').onSnapshot((querySnapshot) => {
+                protesisData = [];
+                querySnapshot.forEach((doc) => {
+                    protesisData.push({ id: doc.id, ...doc.data() });
+                });
 
                 const loadingState = document.getElementById('loadingState');
                 if (loadingState) loadingState.style.display = 'none';
 
                 renderTable();
                 updateCounters();
-            } catch (error) {
-                console.error('Error fetching data:', error);
-
-                // Si falla el backend, mostramos datos de prueba locales para evitar que la UI quede en blanco
-                console.warn("⚠️ Backend no disponible. Mostrando datos locales de prueba.");
-                protesisData = [
-                    { id: '1', fecha_pedido: '2026-02-20', empresa: 'ImplantTech', medico: 'Dr. Pérez', paciente: 'Juan Gómez', dni: '12345678', tubos: 2, devolucion: 'NO', fecha_colocacion: null, notas: 'Faltan tornillos' },
-                    { id: '2', fecha_pedido: '2026-02-18', empresa: 'BioMed', medico: 'Dra. López', paciente: 'María Silva', dni: '87654321', tubos: 1, devolucion: 'SI', fecha_colocacion: '2026-02-19', notas: '' }
-                ];
-                renderTable();
-                updateCounters();
-            }
+            }, (error) => {
+                console.error("Error al obtener datos de Firebase:", error);
+                alert("Error al conectar con la base de datos de Firebase.");
+            });
         }
 
         /**
          * Insertar un nuevo registro vía Backend
+         */
+        /**
+         * Insertar un nuevo registro directo a Firebase
          */
         async function saveData(newData) {
             const btnGuardar = document.getElementById('btnGuardar');
@@ -544,31 +560,37 @@
             btnGuardar.disabled = true;
 
             try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(newData)
-                });
+                await db.collection('protesis').add(newData);
 
-                if (!response.ok) {
-                    throw new Error(await response.text());
-                }
+                // Enviar correo vía EmailJS
+                enviarCorreo(newData);
 
-                const savedRecord = await response.json();
-
-                // Agregarlo a la tabla local al principio
-                protesisData.unshift(savedRecord);
-
-                renderTable();
-                updateCounters();
                 closeModal();
             } catch (error) {
                 console.error('Error saving data:', error);
-                alert('Hubo un error al guardar la prótesis en el servidor.');
+                alert('Hubo un error al guardar en Firebase.');
             } finally {
                 btnGuardar.innerText = textoOriginal;
                 btnGuardar.disabled = false;
             }
+        }
+
+        // Función para enviar correo con EmailJS (Frontend)
+        function enviarCorreo(data) {
+            const templateParams = {
+                paciente: data.paciente,
+                dni: data.dni || 'No especificado',
+                medico: data.medico,
+                empresa: data.empresa,
+                tubos: data.tubos,
+                recibe: data.recibe || 'No especificado',
+                fecha_recepcion: data.fecha_pedido,
+                notas: data.notas || 'Sin observaciones'
+            };
+
+            emailjs.send('service_o4o0u4r', 'template_7xhq6tq', templateParams)
+                .then(() => console.log('✅ Email enviado con éxito'))
+                .catch((err) => console.error('❌ Error EmailJS:', err));
         }
 
         // ==========================
@@ -634,29 +656,11 @@
             };
 
             try {
-                const response = await fetch(`${API_URL}/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updateData)
-                });
-
-                if (!response.ok) throw new Error("Fallo en servidor al actualizar.");
-
-                // Actualizar estado local
-                const idx = protesisData.findIndex(p => p.id === id);
-                if (idx !== -1) {
-                    protesisData[idx].fecha_colocacion = nuevaFecha;
-                    protesisData[idx].devolucion = nuevaDevolucion;
-                    protesisData[idx].dni = nuevoDni;
-                    protesisData[idx].fecha_entrega = nuevaFechaEntrega;
-                }
-
-                renderTable();
-                updateCounters();
+                await db.collection('protesis').doc(id).update(updateData);
                 closeEditModal();
             } catch (error) {
                 console.error("Error al actualizar:", error);
-                alert("Hubo un error al actualizar a través del servidor.");
+                alert("Hubo un error al actualizar en Firebase.");
             } finally {
                 btn.innerText = txtOriginal;
                 btn.disabled = false;
@@ -665,35 +669,20 @@
 
         async function deleteData(id) {
             const pin = prompt("Por razones de seguridad, ingresa el PIN para eliminar este registro:");
-            // Esta verificación local es solo primera capa. El Backend validará el pin final.
-            if (!pin) {
+            if (!pin) return;
+
+            if (pin !== DELETE_PIN) {
+                alert("PIN incorrecto.");
                 return;
             }
 
             if (!confirm("¿Estás seguro de que deseas eliminar este pedido? Esta acción no se puede deshacer.")) return;
 
             try {
-                const response = await fetch(`${API_URL}/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pin: pin }) // Enviamos el PIN en el Body
-                });
-
-                const responseData = await response.json();
-
-                if (!response.ok) {
-                    alert(responseData.error || "No autorizado para borrar (PIN Incorrecto Server)");
-                    return;
-                }
-
-                // Actualizar estado local quitando el registro de la UI
-                protesisData = protesisData.filter(p => p.id !== id);
-
-                renderTable();
-                updateCounters();
+                await db.collection('protesis').doc(id).delete();
             } catch (error) {
                 console.error("Error al eliminar:", error);
-                alert("Hubo un error con el servidor al intentar eliminar.");
+                alert("Hubo un error al intentar eliminar en Firebase.");
             }
         }
 
@@ -832,40 +821,22 @@
             if (confirm(`¿Deseas marcar los ${items.length} registros seleccionados como "${nuevoEstado.replace('_', ' ')}" con fecha ${formatearFecha(fechaISO)}?`)) {
 
                 try {
-                    // Llamar endpoint masivo 
-                    const response = await fetch(`${API_URL}/bulk-update`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            ids: selectedIds,
-                            updateData: {
-                                devolucion: nuevoEstado,
-                                fecha_entrega: fechaISO
-                            }
-                        })
+                    const batch = db.batch();
+                    selectedIds.forEach(id => {
+                        const ref = db.collection('protesis').doc(id);
+                        batch.update(ref, {
+                            devolucion: nuevoEstado,
+                            fecha_entrega: fechaISO
+                        });
                     });
+                    await batch.commit();
 
-                    if (response.ok) {
-                        // Actualizar UI Local
-                        for (const id of selectedIds) {
-                            const idx = protesisData.findIndex(p => p.id === id);
-                            if (idx !== -1) {
-                                protesisData[idx].devolucion = nuevoEstado;
-                                protesisData[idx].fecha_entrega = fechaISO;
-                            }
-                        }
-                    } else {
-                        throw new Error("Respuesta del servidor falló bulk update");
-                    }
+                    // Limpiar selección
+                    document.getElementById('selectAll').checked = false;
                 } catch (e) {
-                    console.error("Error actualizando masivamente en servidor:", e);
-                    alert("Los datos no se pudieron actualizar masivamente en la base de datos.");
+                    console.error("Error actualizando masivamente:", e);
+                    alert("Error al actualizar masivamente en Firebase.");
                 }
-
-                // Limpiar selección
-                document.getElementById('selectAll').checked = false;
-                renderTable();
-                updateCounters();
             }
         }
 
