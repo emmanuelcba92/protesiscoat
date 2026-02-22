@@ -8,18 +8,11 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Firebase Compat SDKs para simplicidad sin build tools -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+    <!-- Firebase eliminados del frontend: la seguridad ahora está en el Backend (Node.js) -->
+    <!-- EmailJS eliminado del frontend: los envíos los realiza Nodemailer (Node.js) -->
 
-    <!-- EmailJS CDN para notificaciones por email -->
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <script type="text/javascript">
-        (function () {
-            // Inicialización simple
-            emailjs.init("ZI8efqGOOC1hJM07-");
-        })();
-    </script>
+    <!-- SheetJS (Para Exportar a Excel) -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 
     <!-- Configuración Custom de Tailwind -->
     <script>
@@ -151,10 +144,21 @@
                     </select>
                 </div>
             </div>
-            <button onclick="openModal()"
-                class="w-full sm:w-auto bg-turquesa hover:bg-teal-700 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:shadow-lg transition duration-200">
-                + Nueva Prótesis
-            </button>
+            <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                <button onclick="exportarExcel()"
+                    class="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:shadow-lg transition duration-200 flex justify-center items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                        </path>
+                    </svg>
+                    Exportar Excel
+                </button>
+                <button onclick="openModal()"
+                    class="w-full sm:w-auto bg-turquesa hover:bg-teal-700 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:shadow-lg transition duration-200">
+                    + Nueva Prótesis
+                </button>
+            </div>
         </div>
 
         <!-- Tabla Desktop / Vista Mosaico Mobile -->
@@ -171,7 +175,7 @@
                                 </th>
                                 <th scope="col"
                                     class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                                    Fecha</th>
+                                    Fecha recepción</th>
                                 <th scope="col"
                                     class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
                                     Empresa / Médico</th>
@@ -232,7 +236,7 @@
             <form id="protesisForm" class="p-6" onsubmit="handleFormSubmit(event)">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">Fecha de Pedido</label>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Fecha de recepción</label>
                         <input type="date" id="fechaPedido" required
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent">
                     </div>
@@ -366,6 +370,15 @@
                             <option value="MATERIAL_DEVUELTO">MATERIAL DEVUELTO</option>
                         </select>
                     </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Fecha de
+                            Entrega/Devolución</label>
+                        <input type="date" id="editFechaEntrega"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent">
+                        <p class="text-[10px] text-gray-500 mt-1 leading-tight">Define cuándo se entregó el certificado
+                            o se devolvió el material. Si se deja en blanco, será PENDIENTE o tomará la fecha de
+                            impresión masiva.</p>
+                    </div>
                 </div>
 
                 <div class="mt-6 flex justify-end gap-3 pt-4 border-t border-gray-100">
@@ -384,24 +397,10 @@
     <!-- Lógica de la Aplicación -->
     <script>
         /**
-         * 1. CONFIGURACIÓN DE FIREBASE
-         * REEMPLAZA ESTE OBJETO CON TUS CREDENCIALES DE FIREBASE
+         * URL DEL BACKEND
+         * Cambiar esta URL cuando se suba el backend a un servidor real (ej. Render, Railway)
          */
-        const firebaseConfig = {
-            apiKey: "AIzaSyCBm4dIubUOXCHZLE2xxZHF9MKh1dGUcBg",
-            authDomain: "cajacx-test.firebaseapp.com",
-            projectId: "cajacx-test",
-            storageBucket: "cajacx-test.firebasestorage.app",
-            messagingSenderId: "930859241568",
-            appId: "1:930859241568:web:b0073b71a921e5affff305"
-        };
-
-        let db = null;
-        // Validación básica para evitar crash si no se han puesto las keys
-        if (firebaseConfig.apiKey !== 'TU_API_KEY') {
-            firebase.initializeApp(firebaseConfig);
-            db = firebase.firestore();
-        }
+        const API_URL = "http://localhost:3000/api/protesis";
 
         // Estado local de los datos para la tabla
         let protesisData = [];
@@ -507,28 +506,14 @@
         // ==========================
 
         /**
-         * Traer los datos desde Firestore
+         * Traer los datos a través del Backend
          */
         async function fetchData() {
-            if (!db) {
-                console.warn("⚠️ Firebase no configurado. Mostrando datos de prueba locales.");
-                protesisData = [
-                    { id: '1', fecha_pedido: '2026-02-20', empresa: 'ImplantTech', medico: 'Dr. Pérez', paciente: 'Juan Gómez', dni: '12345678', tubos: 2, devolucion: 'NO', fecha_colocacion: null, notas: 'Faltan tornillos' },
-                    { id: '2', fecha_pedido: '2026-02-18', empresa: 'BioMed', medico: 'Dra. López', paciente: 'María Silva', dni: '87654321', tubos: 1, devolucion: 'SI', fecha_colocacion: '2026-02-19', notas: '' }
-                ];
-                renderTable();
-                updateCounters();
-                return;
-            }
-
             try {
-                // Asumiendo que la colección en Firestore se llama "protesis"
-                const snapshot = await db.collection('protesis').orderBy('fecha_pedido', 'desc').get();
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error("Error en la respuesta del servidor");
 
-                protesisData = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
+                protesisData = await response.json();
 
                 const loadingState = document.getElementById('loadingState');
                 if (loadingState) loadingState.style.display = 'none';
@@ -537,12 +522,20 @@
                 updateCounters();
             } catch (error) {
                 console.error('Error fetching data:', error);
-                alert('Hubo un error al cargar los datos. Verifica la consola y las reglas de seguridad de Firestore.');
+
+                // Si falla el backend, mostramos datos de prueba locales para evitar que la UI quede en blanco
+                console.warn("⚠️ Backend no disponible. Mostrando datos locales de prueba.");
+                protesisData = [
+                    { id: '1', fecha_pedido: '2026-02-20', empresa: 'ImplantTech', medico: 'Dr. Pérez', paciente: 'Juan Gómez', dni: '12345678', tubos: 2, devolucion: 'NO', fecha_colocacion: null, notas: 'Faltan tornillos' },
+                    { id: '2', fecha_pedido: '2026-02-18', empresa: 'BioMed', medico: 'Dra. López', paciente: 'María Silva', dni: '87654321', tubos: 1, devolucion: 'SI', fecha_colocacion: '2026-02-19', notas: '' }
+                ];
+                renderTable();
+                updateCounters();
             }
         }
 
         /**
-         * Insertar un nuevo registro en Firestore
+         * Insertar un nuevo registro vía Backend
          */
         async function saveData(newData) {
             const btnGuardar = document.getElementById('btnGuardar');
@@ -551,54 +544,27 @@
             btnGuardar.disabled = true;
 
             try {
-                if (!db) {
-                    // Simulación de guardado para la prueba visual
-                    newData.id = Date.now().toString();
-                    protesisData.unshift(newData);
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newData)
+                });
 
-                    setTimeout(() => {
-                        renderTable();
-                        updateCounters();
-                        closeModal();
-                        btnGuardar.innerText = textoOriginal;
-                        btnGuardar.disabled = false;
-                    }, 500);
-                    return;
+                if (!response.ok) {
+                    throw new Error(await response.text());
                 }
 
-                const docRef = await db.collection('protesis').add(newData);
+                const savedRecord = await response.json();
 
-                // Agregar el registro recién guardado al estado local con su nuevo ID autogenerado
-                newData.id = docRef.id;
-                protesisData.unshift(newData);
-
-                // Enviar notificación por email
-                try {
-                    // Enviamos los datos asegurando que coincidan con las llaves {{}} de tu plantilla
-                    await emailjs.send("service_o4o0u4r", "template_7xhq6tq", {
-                        paciente: newData.paciente,
-                        dni: newData.dni,
-                        medico: newData.medico,
-                        empresa: newData.empresa,
-                        tubos: newData.tubos,
-                        recibe: newData.recibe || 'N/A',
-                        notas: newData.notas || 'Sin notas'
-                    }, "ZI8efqGOOC1hJM07-"); // Pasamos la llave pública también aquí por seguridad
-                    console.log("✅ Email de notificación enviado correctamente.");
-                } catch (emailError) {
-                    console.error('❌ Error EmailJS:', emailError);
-                    // Si el servidor nos dio un mensaje de error, lo mostramos en la consola
-                    if (emailError.text) {
-                        console.error('Detalle técnico del error:', emailError.text);
-                    }
-                }
+                // Agregarlo a la tabla local al principio
+                protesisData.unshift(savedRecord);
 
                 renderTable();
                 updateCounters();
                 closeModal();
             } catch (error) {
                 console.error('Error saving data:', error);
-                alert('Hubo un error al guardar la prótesis. Verifica la consola y las reglas de seguridad de Firestore.');
+                alert('Hubo un error al guardar la prótesis en el servidor.');
             } finally {
                 btnGuardar.innerText = textoOriginal;
                 btnGuardar.disabled = false;
@@ -634,11 +600,12 @@
         const modalEdit = document.getElementById('editModal');
         const formEdit = document.getElementById('editForm');
 
-        function openEditModal(id, fechaColocacion, devolucion, dni) {
+        function openEditModal(id, fechaColocacion, devolucion, dni, fechaEntrega) {
             document.getElementById('editId').value = id;
-            document.getElementById('editFechaColocacion').value = fechaColocacion;
+            document.getElementById('editFechaColocacion').value = fechaColocacion || '';
             document.getElementById('editDevolucion').value = devolucion === 'SI' ? 'DEVUELTO' : devolucion;
             document.getElementById('editDni').value = dni || '';
+            document.getElementById('editFechaEntrega').value = fechaEntrega || '';
             modalEdit.classList.add('modal-active');
         }
 
@@ -652,20 +619,28 @@
             const nuevaFecha = document.getElementById('editFechaColocacion').value || null;
             const nuevaDevolucion = document.getElementById('editDevolucion').value;
             const nuevoDni = document.getElementById('editDni').value || '';
+            const nuevaFechaEntrega = document.getElementById('editFechaEntrega').value || null;
 
             const btn = document.getElementById('btnGuardarEdit');
             const txtOriginal = btn.innerText;
             btn.innerText = 'Actualizando...';
             btn.disabled = true;
 
+            const updateData = {
+                fecha_colocacion: nuevaFecha,
+                devolucion: nuevaDevolucion,
+                dni: nuevoDni,
+                fecha_entrega: nuevaFechaEntrega
+            };
+
             try {
-                if (db) {
-                    await db.collection('protesis').doc(id).update({
-                        fecha_colocacion: nuevaFecha,
-                        devolucion: nuevaDevolucion,
-                        dni: nuevoDni
-                    });
-                }
+                const response = await fetch(`${API_URL}/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updateData)
+                });
+
+                if (!response.ok) throw new Error("Fallo en servidor al actualizar.");
 
                 // Actualizar estado local
                 const idx = protesisData.findIndex(p => p.id === id);
@@ -673,6 +648,7 @@
                     protesisData[idx].fecha_colocacion = nuevaFecha;
                     protesisData[idx].devolucion = nuevaDevolucion;
                     protesisData[idx].dni = nuevoDni;
+                    protesisData[idx].fecha_entrega = nuevaFechaEntrega;
                 }
 
                 renderTable();
@@ -680,7 +656,7 @@
                 closeEditModal();
             } catch (error) {
                 console.error("Error al actualizar:", error);
-                alert("Hubo un error al actualizar.");
+                alert("Hubo un error al actualizar a través del servidor.");
             } finally {
                 btn.innerText = txtOriginal;
                 btn.disabled = false;
@@ -688,21 +664,36 @@
         }
 
         async function deleteData(id) {
+            const pin = prompt("Por razones de seguridad, ingresa el PIN para eliminar este registro:");
+            // Esta verificación local es solo primera capa. El Backend validará el pin final.
+            if (!pin) {
+                return;
+            }
+
             if (!confirm("¿Estás seguro de que deseas eliminar este pedido? Esta acción no se puede deshacer.")) return;
 
             try {
-                if (db) {
-                    await db.collection('protesis').doc(id).delete();
+                const response = await fetch(`${API_URL}/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin: pin }) // Enviamos el PIN en el Body
+                });
+
+                const responseData = await response.json();
+
+                if (!response.ok) {
+                    alert(responseData.error || "No autorizado para borrar (PIN Incorrecto Server)");
+                    return;
                 }
 
-                // Actualizar estado local
+                // Actualizar estado local quitando el registro de la UI
                 protesisData = protesisData.filter(p => p.id !== id);
 
                 renderTable();
                 updateCounters();
             } catch (error) {
                 console.error("Error al eliminar:", error);
-                alert("Hubo un error al eliminar.");
+                alert("Hubo un error con el servidor al intentar eliminar.");
             }
         }
 
@@ -721,12 +712,18 @@
                 <span class="text-[9px] sm:text-sm uppercase sm:normal-case font-bold sm:font-medium text-gray-400 sm:text-white tracking-widest sm:tracking-normal">Seleccionados</span>
             </div>
             <div class="h-8 w-px bg-gray-700 hidden sm:block"></div>
-            <div class="flex gap-2">
-                <button onclick="handleBulkPrint('CERTIFICADO')" class="flex items-center gap-2 bg-turquesa hover:bg-teal-600 p-2 sm:px-4 sm:py-2 rounded-lg text-sm font-bold transition shadow-lg active:scale-95" title="Constancia Certificado">
+            <div class="flex flex-col sm:flex-row items-center gap-2">
+                <div class="relative group">
+                    <input type="date" id="bulkFechaImpresion" 
+                        class="bg-gray-800 text-white text-xs px-3 py-2 rounded border border-gray-600 focus:outline-none focus:border-turquesa transition"
+                        title="Fecha de la constancia (Por defecto: Hoy)">
+                    <p class="absolute -top-6 left-0 text-[10px] text-gray-400 whitespace-nowrap opacity-0 group-hover:opacity-100 transition pointer-events-none">Fecha Constancia (Opcional)</p>
+                </div>
+                <button onclick="handleBulkPrint('CERTIFICADO')" class="flex items-center justify-center gap-2 bg-turquesa hover:bg-teal-600 p-2 sm:px-4 sm:py-2 rounded-lg text-sm font-bold transition shadow-lg active:scale-95 w-full sm:w-auto" title="Constancia Certificado">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                     <span class="hidden sm:inline">Constancia Certificado</span>
                 </button>
-                <button onclick="handleBulkPrint('DEVOLUCION')" class="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 p-2 sm:px-4 sm:py-2 rounded-lg text-sm font-bold transition shadow-lg active:scale-95" title="Constancia Devolución">
+                <button onclick="handleBulkPrint('DEVOLUCION')" class="flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 p-2 sm:px-4 sm:py-2 rounded-lg text-sm font-bold transition shadow-lg active:scale-95 w-full sm:w-auto" title="Constancia Devolución">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z"></path></svg>
                     <span class="hidden sm:inline">Constancia Devolución</span>
                 </button>
@@ -763,8 +760,28 @@
             const printContainer = document.getElementById('section-to-print');
             printContainer.innerHTML = '';
 
-            const hoy = new Date();
-            const fechaString = `Córdoba, ${hoy.getDate()} de ${["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"][hoy.getMonth()]} de ${hoy.getFullYear()}`;
+            let fechaString = "";
+            let fechaISO = "";
+            const fechaManual = document.getElementById('bulkFechaImpresion').value;
+
+            if (fechaManual) {
+                // Si el usuario eligió una fecha manual (Ej. "2026-02-15")
+                const [yyyy, mm, dd] = fechaManual.split('-');
+                const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+                fechaString = `Córdoba, ${parseInt(dd, 10)} de ${meses[parseInt(mm, 10) - 1]} de ${yyyy}`;
+                fechaISO = fechaManual;
+            } else {
+                // Si no eligió nada, usa hoy
+                const hoy = new Date();
+                const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+                fechaString = `Córdoba, ${hoy.getDate()} de ${meses[hoy.getMonth()]} de ${hoy.getFullYear()}`;
+
+                // Formato YYYY-MM-DD para guardar en BD considerando Local Time
+                const yyyy = hoy.getFullYear();
+                const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+                const dd = String(hoy.getDate()).padStart(2, '0');
+                fechaISO = `${yyyy}-${mm}-${dd}`;
+            }
 
             for (const [empresa, listaPacientes] of Object.entries(itemsByCompany)) {
                 const page = document.createElement('div');
@@ -812,18 +829,37 @@
 
             // Preguntar si desea actualizar el estado masivamente
             const nuevoEstado = type === 'CERTIFICADO' ? 'CERTIFICADO_ENTREGADO' : 'MATERIAL_DEVUELTO';
-            if (confirm(`¿Deseas marcar los ${items.length} registros seleccionados como "${nuevoEstado.replace('_', ' ')}"?`)) {
+            if (confirm(`¿Deseas marcar los ${items.length} registros seleccionados como "${nuevoEstado.replace('_', ' ')}" con fecha ${formatearFecha(fechaISO)}?`)) {
 
-                for (const id of selectedIds) {
-                    try {
-                        if (db) {
-                            await db.collection('protesis').doc(id).update({ devolucion: nuevoEstado });
+                try {
+                    // Llamar endpoint masivo 
+                    const response = await fetch(`${API_URL}/bulk-update`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            ids: selectedIds,
+                            updateData: {
+                                devolucion: nuevoEstado,
+                                fecha_entrega: fechaISO
+                            }
+                        })
+                    });
+
+                    if (response.ok) {
+                        // Actualizar UI Local
+                        for (const id of selectedIds) {
+                            const idx = protesisData.findIndex(p => p.id === id);
+                            if (idx !== -1) {
+                                protesisData[idx].devolucion = nuevoEstado;
+                                protesisData[idx].fecha_entrega = fechaISO;
+                            }
                         }
-                        const idx = protesisData.findIndex(p => p.id === id);
-                        if (idx !== -1) protesisData[idx].devolucion = nuevoEstado;
-                    } catch (e) {
-                        console.error("Error actualizando masivamente:", e);
+                    } else {
+                        throw new Error("Respuesta del servidor falló bulk update");
                     }
+                } catch (e) {
+                    console.error("Error actualizando masivamente en servidor:", e);
+                    alert("Los datos no se pudieron actualizar masivamente en la base de datos.");
                 }
 
                 // Limpiar selección
@@ -840,6 +876,54 @@
                 return `${partes[2]}/${partes[1]}/${partes[0]}`;
             }
             return fechaString;
+        }
+
+        function exportarExcel() {
+            if (protesisData.length === 0) {
+                alert("No hay datos para exportar.");
+                return;
+            }
+
+            // Mapeamos los datos al formato que queremos ver en Excel
+            const datosExportar = protesisData.map(item => ({
+                "Fecha recepción": formatearFecha(item.fecha_pedido),
+                "Empresa": item.empresa || "",
+                "Médico": item.medico || "",
+                "Paciente": item.paciente ? item.paciente.toUpperCase() : "",
+                "DNI": item.dni || "",
+                "Tubos": item.tubos || 1,
+                "Estado": item.devolucion === 'NO' ? 'Pendiente' : item.devolucion.replace('_', ' '),
+                "Fecha Colocación": formatearFecha(item.fecha_colocacion),
+                "Fecha Entrega (Certif/Dev)": formatearFecha(item.fecha_entrega),
+                "Recibe": item.recibe || "",
+                "Notas": item.notas || ""
+            }));
+
+            // Creamos un libro de trabajo y una hoja
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(datosExportar);
+
+            // Ajustamos el ancho de las columnas
+            ws['!cols'] = [
+                { wch: 15 }, // Fecha recepción
+                { wch: 20 }, // Empresa
+                { wch: 20 }, // Médico
+                { wch: 25 }, // Paciente
+                { wch: 12 }, // DNI
+                { wch: 8 },  // Tubos
+                { wch: 20 }, // Estado
+                { wch: 15 }, // Fecha Colocación
+                { wch: 15 }, // Fecha Entrega
+                { wch: 20 }, // Recibe
+                { wch: 30 }  // Notas
+            ];
+
+            // Añadimos la hoja al libro
+            XLSX.utils.book_append_sheet(wb, ws, "Prótesis");
+
+            // Generamos el archivo usando la fecha actual en el nombre del archivo
+            const fechaHoy = new Date().toISOString().split('T')[0];
+            XLSX.writeFile(wb, `Control_Protesis_${fechaHoy}.xlsx`);
         }
 
         function renderTable() {
@@ -938,12 +1022,16 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium flex gap-2">
                         <button class="text-turquesa bg-teal-50 hover:bg-teal-100 p-2 rounded-md transition" 
-                                onclick="alert('Notas: ${item.notas || 'Sin notas'}')">
+                                onclick="alert('Notas: ${item.notas || 'Sin notas'}\\nFecha Entrega Registrada: ${formatearFecha(item.fecha_entrega)}')">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         </button>
                         <button class="text-amber-600 bg-amber-50 hover:bg-amber-100 p-2 rounded-md transition" 
-                                onclick="openEditModal('${item.id}', '${item.fecha_colocacion || ''}', '${item.devolucion}', '${item.dni || ''}')">
+                                onclick="openEditModal('${item.id}', '${item.fecha_colocacion || ''}', '${item.devolucion}', '${item.dni || ''}', '${item.fecha_entrega || ''}')">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        </button>
+                        <button class="text-rose-600 bg-rose-50 hover:bg-rose-100 p-2 rounded-md transition" 
+                                onclick="deleteData('${item.id}')" title="Eliminar registro">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                         </button>
                     </td>
                 `;
@@ -957,7 +1045,7 @@
                         <input type="checkbox" class="item-checkbox w-7 h-7 text-turquesa rounded-lg border-gray-300 focus:ring-turquesa shadow-sm" value="${item.id}" ${isSelected ? 'checked' : ''} onchange="syncCheckboxes('${item.id}', this.checked)">
                     </div>
                     <div class="flex flex-col pr-12">
-                        <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Pedido: ${formatearFecha(item.fecha_pedido)}</span>
+                        <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Recepción: ${formatearFecha(item.fecha_pedido)}</span>
                         <h4 class="font-extrabold text-gray-800 text-lg uppercase leading-tight mt-1 break-words">${pacienteUpper}</h4>
                         <p class="text-[11px] text-gray-500 font-bold mt-1">${item.dni ? 'DNI ' + item.dni : 'SIN DNI'}</p>
                     </div>
@@ -984,11 +1072,14 @@
                         : (item.fecha_colocacion ? `<span class="text-[10px] text-gray-500 font-bold uppercase">Cirugía: ${formatearFecha(item.fecha_colocacion)}</span>` : '')}
                         </div>
                         <div class="flex gap-2">
-                             <button class="text-turquesa bg-teal-50 hover:bg-teal-100 p-3 rounded-2xl transition border border-teal-100 active:scale-95" onclick="alert('Notas: ${item.notas || 'Sin notas'}')">
+                             <button class="text-turquesa bg-teal-50 hover:bg-teal-100 p-3 rounded-2xl transition border border-teal-100 active:scale-95" onclick="alert('Notas: ${item.notas || 'Sin notas'}\\nFecha Entrega Registrada: ${formatearFecha(item.fecha_entrega)}')">
                                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                             </button>
-                            <button class="text-amber-600 bg-amber-50 hover:bg-amber-100 p-3 rounded-2xl transition border border-amber-100 active:scale-95" onclick="openEditModal('${item.id}', '${item.fecha_colocacion || ''}', '${item.devolucion}', '${item.dni || ''}')">
+                            <button class="text-amber-600 bg-amber-50 hover:bg-amber-100 p-3 rounded-2xl transition border border-amber-100 active:scale-95" onclick="openEditModal('${item.id}', '${item.fecha_colocacion || ''}', '${item.devolucion}', '${item.dni || ''}', '${item.fecha_entrega || ''}')">
                                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                            </button>
+                            <button class="text-rose-600 bg-rose-50 hover:bg-rose-100 p-3 rounded-2xl transition border border-rose-100 active:scale-95" onclick="deleteData('${item.id}')">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                             </button>
                         </div>
                     </div>
