@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const admin = require('firebase-admin');
-const nodemailer = require('nodemailer');
+const emailjs = require('@emailjs/nodejs');
 
 const app = express();
 app.use(cors());
@@ -22,17 +22,11 @@ try {
 
 const db = admin.firestore();
 
-// Configurar Nodemailer para enviar correos (Reemplaza con tus datos SMTP)
-// Esto reemplaza a EmailJS en el frontend
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com', // Ejemplo con Gmail
-    port: process.env.SMTP_PORT || 587,
-    secure: false, // true para 465, false para otros puertos
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS 
-    }
-});
+// Configuración EmailJS (Ahora estática y segura en el servidor)
+const EMAILJS_SERVICE_ID = 'service_o4o0u4r';
+const EMAILJS_TEMPLATE_ID = 'template_7xhq6tq';
+const EMAILJS_PUBLIC_KEY = 'ZI8efqGOOC1hJM07-';
+const EMAILJS_PRIVATE_KEY = process.env.EMAILJS_PRIVATE_KEY || ''; // Opcional pero recomendado en EmailJS Dashboard
 
 // ==========================================
 // ENDPOINTS
@@ -54,9 +48,9 @@ app.get('/api/protesis', async (req, res) => {
 app.post('/api/protesis', async (req, res) => {
     try {
         const newData = req.body;
-        
+
         // Validar datos mínimos
-        if(!newData.paciente || !newData.empresa || !newData.medico) {
+        if (!newData.paciente || !newData.empresa || !newData.medico) {
             return res.status(400).json({ error: 'Faltan datos requeridos (paciente, empresa, medico)' });
         }
 
@@ -78,7 +72,7 @@ app.put('/api/protesis/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const updateData = req.body;
-        
+
         await db.collection('protesis').doc(id).update(updateData);
         res.json({ success: true, message: 'Prótesis actualizada' });
     } catch (error) {
@@ -92,10 +86,10 @@ app.delete('/api/protesis/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const { pin } = req.body; // El PIN se envía en el body de la petición DELETE
-        
+
         // Validación del PIN en el servidor (Mucho más seguro que en el frontend)
         const SERVER_PIN = process.env.DELETE_PIN || '546287';
-        
+
         if (pin !== SERVER_PIN) {
             return res.status(403).json({ error: 'PIN incorrecto. Operación denegada.' });
         }
@@ -112,13 +106,13 @@ app.delete('/api/protesis/:id', async (req, res) => {
 app.post('/api/protesis/bulk-update', async (req, res) => {
     try {
         const { ids, updateData } = req.body;
-        
-        if(!Array.isArray(ids) || ids.length === 0) {
-             return res.status(400).json({ error: 'Se requiere un arreglo de IDs' });
+
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ error: 'Se requiere un arreglo de IDs' });
         }
 
         const batch = db.batch();
-        
+
         ids.forEach(id => {
             const docRef = db.collection('protesis').doc(id);
             batch.update(docRef, updateData);
@@ -128,37 +122,40 @@ app.post('/api/protesis/bulk-update', async (req, res) => {
         res.json({ success: true, message: `${ids.length} registros actualizados` });
     } catch (error) {
         console.error("Error en actualización masiva:", error);
-         res.status(500).json({ error: 'Error al actualizar datos masivamente' });
+        res.status(500).json({ error: 'Error al actualizar datos masivamente' });
     }
 });
 
 
 // Función auxiliar para enviar correos
 async function enviarCorreo(data) {
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS || !process.env.EMAIL_TO) {
-        console.warn("Credenciales SMTP no configuradas. Saltando envío de correo.");
-        return;
-    }
-
-    const html = `
-        <h2>Nueva solicitud de prótesis</h2>
-        <p><strong>Paciente:</strong> ${data.paciente} (DNI: ${data.dni || 'No especificado'})</p>
-        <p><strong>Médico:</strong> ${data.medico}</p>
-        <p><strong>Empresa:</strong> ${data.empresa}</p>
-        <p><strong>Tubos:</strong> ${data.tubos}</p>
-        <p><strong>Recibe:</strong> ${data.recibe || 'N/A'}</p>
-        <p><strong>Notas:</strong> ${data.notas || 'Sin notas'}</p>
-    `;
-
-    const mailOptions = {
-        from: `"Sistema Prótesis" <${process.env.SMTP_USER}>`,
-        to: process.env.EMAIL_TO, // Correo destino definido en .env
-        subject: `Nueva Prótesis - ${data.paciente}`,
-        html: html
+    // Parámetros para tu template de EmailJS
+    // Asegúrate de que en tu panel de EmailJS el template use estas variables: {{paciente}}, {{medico}}, etc.
+    const templateParams = {
+        paciente: data.paciente,
+        dni: data.dni || 'No especificado',
+        medico: data.medico,
+        empresa: data.empresa,
+        tubos: data.tubos,
+        recibe: data.recibe || 'No especificado',
+        fecha_recepcion: data.fecha_pedido,
+        notas: data.notas || 'Sin observaciones'
     };
 
-    await transporter.sendMail(mailOptions);
-    console.log("Correo enviado correctamente");
+    try {
+        const result = await emailjs.send(
+            EMAILJS_SERVICE_ID,
+            EMAILJS_TEMPLATE_ID,
+            templateParams,
+            {
+                publicKey: EMAILJS_PUBLIC_KEY,
+                privateKey: EMAILJS_PRIVATE_KEY,
+            }
+        );
+        console.log("✅ EmailJS: Notificación enviada con éxito!", result.status, result.text);
+    } catch (error) {
+        console.error("❌ EmailJS: Error al enviar el correo:", error);
+    }
 }
 
 const PORT = process.env.PORT || 3000;
