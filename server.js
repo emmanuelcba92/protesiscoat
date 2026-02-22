@@ -26,7 +26,7 @@ const db = admin.firestore();
 const EMAILJS_SERVICE_ID = 'service_o4o0u4r';
 const EMAILJS_TEMPLATE_ID = 'template_7xhq6tq';
 const EMAILJS_PUBLIC_KEY = 'ZI8efqGOOC1hJM07-';
-const EMAILJS_PRIVATE_KEY = process.env.EMAILJS_PRIVATE_KEY || ''; // Opcional pero recomendado en EmailJS Dashboard
+const EMAILJS_PRIVATE_KEY = 'fjL3uPceKudh5FfOFOf1Y'; // Configurada para permitir envíos desde el Backend
 
 // ==========================================
 // ENDPOINTS
