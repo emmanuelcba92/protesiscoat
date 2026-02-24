@@ -252,10 +252,21 @@
                     <input type="text" id="searchSmp" placeholder="Buscar profesional..."
                         class="w-full pl-4 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent transition shadow-sm">
                 </div>
-                <button onclick="openSmpModal()"
-                    class="w-full sm:w-auto bg-turquesa hover:bg-teal-700 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:shadow-lg transition duration-200">
-                    + Cargar Profesional (SMP)
-                </button>
+                <div class="flex gap-2 w-full sm:w-auto">
+                    <button onclick="enviarRecordatoriosManual()"
+                        class="w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2.5 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-200 flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+                            </path>
+                        </svg>
+                        Chequear y Avisar
+                    </button>
+                    <button onclick="openSmpModal()"
+                        class="w-full sm:w-auto bg-turquesa hover:bg-teal-700 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:shadow-lg transition duration-200">
+                        + Cargar Profesional
+                    </button>
+                </div>
             </div>
 
             <!-- Tabla SMP -->
@@ -1404,6 +1415,51 @@
             } catch (err) {
                 alert("Error al eliminar");
             }
+        }
+
+        async function enviarRecordatoriosManual() {
+            if (!confirm("¿Deseas realizar el chequeo de vencimientos para mañana y enviar los correos ahora (vía EmailJS)?")) return;
+
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+
+            const mañana = new Date(hoy);
+            mañana.setDate(hoy.getDate() + 1);
+            const mañanaISO = mañana.toISOString().split('T')[0];
+
+            const aAvisar = smpData.filter(item => item.fecha_vencimiento === mañanaISO);
+
+            if (aAvisar.length === 0) {
+                alert("No hay profesionales que venzan mañana (" + formatearFecha(mañanaISO) + ").");
+                return;
+            }
+
+            const btn = event.currentTarget;
+            const originalHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerText = "Enviando...";
+
+            let enviados = 0;
+            for (const p of aAvisar) {
+                try {
+                    await emailjs.send("service_o4o0u4r", "template_7xhq6tq", {
+                        paciente: "AVISO SMP: " + p.profesional,
+                        dni: "VENCE: " + formatearFecha(p.fecha_vencimiento),
+                        medico: p.profesional,
+                        empresa: "COAT SMP (Manual)",
+                        tubos: "1",
+                        recibe: "Administración",
+                        notas: `Recordatorio manual. El seguro vence el ${formatearFecha(p.fecha_vencimiento)}. Email del profesional: ${p.email || 'No registrado'}`
+                    });
+                    enviados++;
+                } catch (e) {
+                    console.error("Error al enviar recordatorio manual:", e);
+                }
+            }
+
+            alert(`Chequeo finalizado.\nProfesionales que vencen mañana: ${aAvisar.length}\nEmails enviados con éxito: ${enviados}`);
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
         }
     </script>
 
