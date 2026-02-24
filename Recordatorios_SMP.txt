@@ -53,7 +53,7 @@ El Seguro de Mala Praxis del profesional **${profesional}** vence el día de ma�
 Por favor, verificar que se haya presentado la documentación actualizada para evitar inconvenientes en las próximas cirugías o inspecciones.
 
 Atentamente,
-Administración Clínica COAT
+Clínica COAT
   `;
 
   // 1. Enviar siempre a administración
