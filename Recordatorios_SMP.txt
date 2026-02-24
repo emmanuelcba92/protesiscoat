@@ -1,0 +1,78 @@
+// --- CONFIGURACIÓN ---
+const PROJECT_ID = 'cajacx-test'; 
+const ADMIN_EMAIL = 'PON_AQUI_EL_EMAIL_DE_LA_CLINICA@EJEMPLO.COM'; // <--- CAMBIAR ESTO
+// ---------------------
+
+/**
+ * Esta función debe configurarse con un "Activador" (Trigger) 
+ * de tipo "Reloj" para que se ejecute todos los días entre las 7am y 8am.
+ */
+function EnviarRecordatoriosSMP() {
+  const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/smp`;
+  
+  try {
+    const response = UrlFetchApp.fetch(url, { method: 'get', muteHttpExceptions: true });
+    const json = JSON.parse(response.getContentText());
+    
+    if (response.getResponseCode() !== 200) return Logger.log("Error Firestore: " + response.getContentText());
+    if (!json.documents) return Logger.log("No hay documentos en SMP");
+
+    const hoy = new Date();
+    hoy.setHours(0,0,0,0);
+    
+    const mañana = new Date(hoy);
+    mañana.setDate(hoy.getDate() + 1);
+    const mañanaISO = mañana.toISOString().split('T')[0];
+
+    json.documents.forEach(doc => {
+      const f = doc.fields;
+      const vencimiento = f.fecha_vencimiento.stringValue;
+      const profesional = f.profesional.stringValue;
+      const emailPro = f.email ? f.email.stringValue : null;
+      const avisarPro = f.aviso_profesional ? f.aviso_profesional.booleanValue : false;
+
+      // Si el vencimiento es mañana, enviamos el aviso
+      if (vencimiento === mañanaISO) {
+        enviarEmail(profesional, vencimiento, emailPro, avisarPro);
+      }
+    });
+
+  } catch (e) {
+    Logger.log("Error general: " + e.message);
+  }
+}
+
+function enviarEmail(profesional, fecha, emailPro, avisarPro) {
+  const subject = `⚠️ RECORDATORIO: Vencimiento SMP - ${profesional}`;
+  const body = `
+Hola,
+
+Este es un aviso automático de Prótesis COAT.
+El Seguro de Mala Praxis del profesional **${profesional}** vence el día de mañana: **${fecha}**.
+
+Por favor, verificar que se haya presentado la documentación actualizada para evitar inconvenientes en las próximas cirugías o inspecciones.
+
+Atentamente,
+Sistema Control de Prótesis COAT
+  `;
+
+  // 1. Enviar siempre a administración
+  MailApp.sendEmail(ADMIN_EMAIL, subject, body);
+  Logger.log(`Email enviado a administración por ${profesional}`);
+
+  // 2. Enviar al profesional si está configurado y tiene email
+  if (avisarPro && emailPro) {
+    const bodyPro = `
+Estimado/a ${profesional},
+
+Le informamos desde la Clínica COAT que su Seguro de Mala Praxis (SMP) tiene fecha de vencimiento para el día de mañana: **${fecha}**.
+
+Le solicitamos por favor que acerque o envíe la póliza actualizada a la administración para mantener su expediente al día.
+
+Saludos cordiales,
+Administración COAT
+    `;
+    MailApp.sendEmail(emailPro, subject, bodyPro);
+    Logger.log(`Email enviado al profesional: ${emailPro}`);
+  }
+}

@@ -135,98 +135,164 @@
             </div>
         </header>
 
-        <!-- Acciones (Buscador y Botón) -->
-        <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-            <div class="flex flex-col sm:flex-row w-full sm:w-2/3 gap-4">
-                <div class="relative w-full sm:w-1/2">
-                    <input type="text" id="searchInput" placeholder="Buscar paciente, médico o DNI..."
-                        class="w-full pl-4 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent transition shadow-sm">
+        <!-- Navegación por Pestañas -->
+        <nav class="flex mb-8 bg-white rounded-xl shadow-sm p-1 border border-gray-100">
+            <button onclick="switchTab('tab-protesis')" id="btn-tab-protesis"
+                class="flex-1 py-3 px-6 rounded-lg font-bold text-center transition-all duration-200 bg-turquesa text-white">
+                Control de Prótesis
+            </button>
+            <button onclick="switchTab('tab-smp')" id="btn-tab-smp"
+                class="flex-1 py-3 px-6 rounded-lg font-bold text-center transition-all duration-200 text-gray-500 hover:bg-gray-50">
+                Vencimientos SMP
+            </button>
+        </nav>
+
+        <!-- SECCIÓN: CONTROL DE PRÓTESIS -->
+        <div id="tab-protesis" class="tab-content">
+
+
+            <!-- Acciones (Buscador y Botón) -->
+            <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+                <div class="flex flex-col sm:flex-row w-full sm:w-2/3 gap-4">
+                    <div class="relative w-full sm:w-1/2">
+                        <input type="text" id="searchInput" placeholder="Buscar paciente, médico o DNI..."
+                            class="w-full pl-4 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent transition shadow-sm">
+                    </div>
+                    <div class="relative w-full sm:w-1/2">
+                        <select id="statusFilter"
+                            class="w-full pl-4 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent transition shadow-sm bg-white font-medium text-gray-700">
+                            <option value="PENDIENTES">Vista: Pendientes (Predeterminado)</option>
+                            <option value="LISTOS">Vista: Certificados Listos</option>
+                            <option value="PARA_DEVOLVER">Vista: Para Devolver</option>
+                            <option value="FINALIZADOS">Vista: Historial (Entregados/Devueltos)</option>
+                            <option value="TODOS">Vista: Todos los registros</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="relative w-full sm:w-1/2">
-                    <select id="statusFilter"
-                        class="w-full pl-4 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent transition shadow-sm bg-white font-medium text-gray-700">
-                        <option value="PENDIENTES">Vista: Pendientes (Predeterminado)</option>
-                        <option value="LISTOS">Vista: Certificados Listos</option>
-                        <option value="PARA_DEVOLVER">Vista: Para Devolver</option>
-                        <option value="FINALIZADOS">Vista: Historial (Entregados/Devueltos)</option>
-                        <option value="TODOS">Vista: Todos los registros</option>
-                    </select>
+                <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                    <button onclick="exportarExcel()"
+                        class="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:shadow-lg transition duration-200 flex justify-center items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                            </path>
+                        </svg>
+                        Exportar Excel
+                    </button>
+                    <button onclick="openModal()"
+                        class="w-full sm:w-auto bg-turquesa hover:bg-teal-700 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:shadow-lg transition duration-200">
+                        + Nueva Prótesis
+                    </button>
                 </div>
             </div>
-            <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                <button onclick="exportarExcel()"
-                    class="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:shadow-lg transition duration-200 flex justify-center items-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                        </path>
-                    </svg>
-                    Exportar Excel
-                </button>
-                <button onclick="openModal()"
-                    class="w-full sm:w-auto bg-turquesa hover:bg-teal-700 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:shadow-lg transition duration-200">
-                    + Nueva Prótesis
-                </button>
+
+            <!-- Tabla Desktop / Vista Mosaico Mobile -->
+            <div id="content-container">
+                <!-- Vista Tabla (Desktop) -->
+                <div class="hidden md:block bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+                    <div class="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-4 py-4 text-center">
+                                        <input type="checkbox" id="selectAll"
+                                            class="w-4 h-4 text-turquesa rounded border-gray-300 focus:ring-turquesa">
+                                    </th>
+                                    <th scope="col"
+                                        class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        Fecha recepción</th>
+                                    <th scope="col"
+                                        class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        Empresa / Médico</th>
+                                    <th scope="col"
+                                        class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        Paciente</th>
+                                    <th scope="col"
+                                        class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        DNI
+                                    </th>
+                                    <th scope="col"
+                                        class="px-4 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        Tubos</th>
+                                    <th scope="col"
+                                        class="px-4 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        Devol.</th>
+                                    <th scope="col"
+                                        class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        Colocación</th>
+                                    <th scope="col"
+                                        class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody" class="bg-white divide-y divide-gray-200">
+                                <!-- Filas de datos -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Vista Mosaico (Mobile) -->
+                <div id="mobileBody" class="md:hidden grid grid-cols-1 gap-4">
+                    <!-- Tarjetas de datos -->
+                </div>
+
+                <div id="loadingState" class="bg-white p-12 text-center text-gray-500 rounded-xl border border-gray-100"
+                    style="display: none;">
+                    No hay registros para mostrar.
+                </div>
             </div>
         </div>
 
-        <!-- Tabla Desktop / Vista Mosaico Mobile -->
-        <div id="content-container">
-            <!-- Vista Tabla (Desktop) -->
-            <div class="hidden md:block bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
-                <div class="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300">
+        <!-- SECCIÓN: VENCIMIENTOS SMP -->
+        <div id="tab-smp" class="tab-content hidden">
+            <!-- Acciones SMP -->
+            <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+                <div class="relative w-full sm:w-2/3">
+                    <input type="text" id="searchSmp" placeholder="Buscar profesional..."
+                        class="w-full pl-4 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent transition shadow-sm">
+                </div>
+                <button onclick="openSmpModal()"
+                    class="w-full sm:w-auto bg-turquesa hover:bg-teal-700 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:shadow-lg transition duration-200">
+                    + Cargar Profesional (SMP)
+                </button>
+            </div>
+
+            <!-- Tabla SMP -->
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+                <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th scope="col" class="px-4 py-4 text-center">
-                                    <input type="checkbox" id="selectAll"
-                                        class="w-4 h-4 text-turquesa rounded border-gray-300 focus:ring-turquesa">
-                                </th>
-                                <th scope="col"
+                                <th
                                     class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                                    Fecha recepción</th>
-                                <th scope="col"
+                                    Profesional</th>
+                                <th
                                     class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                                    Empresa / Médico</th>
-                                <th scope="col"
+                                    E-mail</th>
+                                <th
                                     class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                                    Paciente</th>
-                                <th scope="col"
+                                    Vencimiento SMP</th>
+                                <th
                                     class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                                    DNI
-                                </th>
-                                <th scope="col"
-                                    class="px-4 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">
-                                    Tubos</th>
-                                <th scope="col"
-                                    class="px-4 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">
-                                    Devol.</th>
-                                <th scope="col"
-                                    class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                                    Colocación</th>
-                                <th scope="col"
-                                    class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                    Estado</th>
+                                <th
+                                    class="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">
                                     Acciones</th>
                             </tr>
                         </thead>
-                        <tbody id="tableBody" class="bg-white divide-y divide-gray-200">
-                            <!-- Filas de datos -->
+                        <tbody id="smpTableBody" class="bg-white divide-y divide-gray-200">
+                            <!-- Datos SMP -->
                         </tbody>
                     </table>
                 </div>
-            </div>
-
-            <!-- Vista Mosaico (Mobile) -->
-            <div id="mobileBody" class="md:hidden grid grid-cols-1 gap-4">
-                <!-- Tarjetas de datos -->
-            </div>
-
-            <div id="loadingState" class="bg-white p-12 text-center text-gray-500 rounded-xl border border-gray-100"
-                style="display: none;">
-                No hay registros para mostrar.
+                <div id="loadingSmp" class="p-12 text-center text-gray-500" style="display: none;">
+                    No hay profesionales cargados.
+                </div>
             </div>
         </div>
     </div>
+
 
     <!-- Modal de Carga -->
     <div id="protesisModal"
@@ -403,8 +469,82 @@
         </div>
     </div>
 
+    <!-- Modal SMP -->
+    <div id="smpModal"
+        class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden justify-center items-center z-50 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden transform transition-all">
+            <div class="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-gray-50">
+                <h3 class="text-xl font-bold text-gray-800" id="smpModalTitle">Cargar Profesional</h3>
+                <button onclick="closeSmpModal()" class="text-gray-400 hover:text-gray-700 transition">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+
+            <form id="smpForm" class="p-6" onsubmit="handleSmpSubmit(event)">
+                <input type="hidden" id="smpId">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Nombre del Profesional</label>
+                        <input type="text" id="smpProfesional" required placeholder="Ej: Dr. Juan Perez"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa uppercase">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">E-mail</label>
+                        <input type="email" id="smpEmail" placeholder="profesional@correo.com (Opcional)"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Vencimiento SMP</label>
+                        <input type="date" id="smpFecha" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-turquesa">
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="smpAviso"
+                            class="w-4 h-4 text-turquesa rounded border-gray-300 focus:ring-turquesa">
+                        <label for="smpAviso" class="text-sm font-medium text-gray-700">Avisar también al profesional
+                            vía email</label>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end gap-3 pt-4 border-t border-gray-100">
+                    <button type="button" onclick="closeSmpModal()"
+                        class="px-5 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition duration-150">Cancelar</button>
+                    <button type="submit"
+                        class="px-5 py-2.5 bg-turquesa text-white font-medium rounded-lg hover:bg-teal-700 shadow-md transition duration-150"
+                        id="btnGuardarSmp">
+                        Guardar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Lógica de la Aplicación -->
     <script>
+        function switchTab(tabId) {
+            // Ocultar todos los contenidos
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+            // Mostrar el activo
+            document.getElementById(tabId).classList.remove('hidden');
+
+            // Actualizar botones
+            const btnProtesis = document.getElementById('btn-tab-protesis');
+            const btnSmp = document.getElementById('btn-tab-smp');
+
+            if (tabId === 'tab-protesis') {
+                btnProtesis.classList.add('bg-turquesa', 'text-white');
+                btnSmp.classList.remove('bg-turquesa', 'text-white');
+                btnSmp.classList.add('text-gray-500');
+            } else {
+                btnSmp.classList.add('bg-turquesa', 'text-white');
+                btnProtesis.classList.remove('bg-turquesa', 'text-white');
+                btnProtesis.classList.add('text-gray-500');
+            }
+        }
+
         // Configuración de Firebase (Copiada de tu consola de Firebase)
         const firebaseConfig = {
             apiKey: "AIzaSyCbw4diu0XCH2L22x2HF9Mxh1dOUcbg",
@@ -421,6 +561,7 @@
 
         // Estado local de los datos para la tabla
         let protesisData = [];
+        let smpData = [];
         const DELETE_PIN = '546287'; // PIN estático como en Caja CX
 
         // Inicialización al cargar la página
@@ -430,12 +571,15 @@
 
             // Traer datos de la base de datos
             fetchData();
+            fetchSmpData();
 
             // Event listener buscador en tiempo real
             document.getElementById('searchInput').addEventListener('input', () => renderTable());
+            document.getElementById('searchSmp').addEventListener('input', () => renderSmpTable());
 
             // Event listener filtro de estado
             document.getElementById('statusFilter').addEventListener('change', () => renderTable());
+
 
             // Lógica para autocompletar con <Enter> y prevenir envío accidental del formulario
             const inputsConDatalist = document.querySelectorAll('input[list]');
@@ -1129,6 +1273,137 @@
             }
             alert("Carga masiva finalizada. La página se recargará.");
             location.reload();
+        }
+        // ==========================
+        // LÓGICA SMP (Seguro Mala Praxis)
+        // ==========================
+        const smpModal = document.getElementById('smpModal');
+        const smpForm = document.getElementById('smpForm');
+
+        function fetchSmpData() {
+            db.collection('smp').orderBy('profesional', 'asc').onSnapshot((querySnapshot) => {
+                smpData = [];
+                querySnapshot.forEach((doc) => {
+                    smpData.push({ id: doc.id, ...doc.data() });
+                });
+                renderSmpTable();
+            });
+        }
+
+        function renderSmpTable() {
+            const tableBody = document.getElementById('smpTableBody');
+            const searchInput = document.getElementById('searchSmp');
+            if (!tableBody || !searchInput) return;
+
+            const term = searchInput.value.toLowerCase();
+            tableBody.innerHTML = '';
+
+            const filtered = smpData.filter(item =>
+                item.profesional.toLowerCase().includes(term)
+            );
+
+            if (filtered.length === 0) {
+                document.getElementById('loadingSmp').style.display = 'block';
+            } else {
+                document.getElementById('loadingSmp').style.display = 'none';
+            }
+
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+
+            filtered.forEach(item => {
+                const fechaVenc = new Date(item.fecha_vencimiento + 'T00:00:00');
+                let statusBadge = '';
+                const diffTime = fechaVenc - hoy;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                if (diffDays < 0) {
+                    statusBadge = '<span class="px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full">VENCIDO</span>';
+                } else if (diffDays <= 15) {
+                    statusBadge = '<span class="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-full">VENCE PRONTO</span>';
+                } else {
+                    statusBadge = '<span class="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">AL DÍA</span>';
+                }
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">${item.profesional}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.email || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatearFecha(item.fecha_vencimiento)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">${statusBadge}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button onclick="openSmpModal('${item.id}')" class="text-turquesa hover:text-teal-900 mr-3 underline">Editar</button>
+                        <button onclick="deleteSmpData('${item.id}')" class="text-red-600 hover:text-red-900 underline">Borrar</button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        function openSmpModal(id = null) {
+            smpForm.reset();
+            document.getElementById('smpId').value = id || '';
+            document.getElementById('smpModalTitle').innerText = id ? 'Editar Profesional' : 'Cargar Profesional';
+
+            if (id) {
+                const record = smpData.find(r => r.id === id);
+                if (record) {
+                    document.getElementById('smpProfesional').value = record.profesional;
+                    document.getElementById('smpEmail').value = record.email || '';
+                    document.getElementById('smpFecha').value = record.fecha_vencimiento;
+                    document.getElementById('smpAviso').checked = record.aviso_profesional || false;
+                }
+            }
+            smpModal.classList.add('modal-active');
+        }
+
+        function closeSmpModal() {
+            smpModal.classList.remove('modal-active');
+        }
+
+        async function handleSmpSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('smpId').value;
+            const btn = document.getElementById('btnGuardarSmp');
+            const txtOriginal = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = 'Guardando...';
+
+            const data = {
+                profesional: document.getElementById('smpProfesional').value.toUpperCase(),
+                email: document.getElementById('smpEmail').value,
+                fecha_vencimiento: document.getElementById('smpFecha').value,
+                aviso_profesional: document.getElementById('smpAviso').checked
+            };
+
+            try {
+                if (id) {
+                    await db.collection('smp').doc(id).update(data);
+                } else {
+                    await db.collection('smp').add(data);
+                }
+                closeSmpModal();
+            } catch (err) {
+                console.error("Error SMP:", err);
+                alert("Error al guardar datos de SMP");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = txtOriginal;
+            }
+        }
+
+        async function deleteSmpData(id) {
+            const pin = prompt("PIN de seguridad para eliminar profesional:");
+            if (!pin) return;
+            if (pin !== DELETE_PIN) return alert("PIN incorrecto");
+
+            if (!confirm("¿Estás seguro de eliminar este profesional y su registro de SMP?")) return;
+
+            try {
+                await db.collection('smp').doc(id).delete();
+            } catch (err) {
+                alert("Error al eliminar");
+            }
         }
     </script>
 

@@ -1,0 +1,132 @@
+// 1. Abre tu hoja de Google Sheets.
+// 2. Ve al menú superior: "Extensiones" > "Apps Script".
+// 3. Borra todo lo que haya ahí y pega este código completo.
+// 4. Haz clic en el ícono de Guardar (el disquete).
+// 5. Ve a la izquierda al ícono del Reloj ("Desencadenadores").
+// 6. Abajo a la derecha haz clic en "+ Añadir desencadenador".
+//    - Función a ejecutar: SincronizarProtesisAFirebase
+//    - Tipo de evento: Al editarse.
+//    - Guardar y aceptar los permisos de Google.
+
+const PROJECT_ID = 'cajacx-test';
+
+function SincronizarProtesisAFirebase() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  
+  // Obtenemos todos los datos (desde A1 hasta L...)
+  const data = sheet.getDataRange().getValues();
+  
+  // Empezamos desde la fila 2 (índice 1) asumiendo que la 1 tiene los títulos
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    
+    // Columna L es el índice 11. Si ya tiene un ID guardado, significa que ya se subió.
+    const idSincronizado = row[11]; 
+    if (idSincronizado) continue;
+    
+    // Validamos que al menos exista un nombre de paciente (Columna D - índice 3)
+    const paciente = row[3];
+    if (!paciente) continue;
+    
+    // Obtenemos las otras columnas
+    const empresa = row[1] || '';
+    const medico = row[2] || '';
+    const dni = row[4] || '';
+    const tubos = parseInt(row[5]) || 1;
+    const recibe = row[6] || '';
+    const notas = row[7] || '';
+    
+    // Para la fecha de recepción (Columna A - índice 0)
+    let fecha_pedido = formatearFecha(row[0]);
+    if (!fecha_pedido) {
+      // Si está vacía, ponemos la de hoy
+      fecha_pedido = formatearFecha(new Date());
+    }
+    
+    // Construimos el objeto
+    const docData = {
+      fecha_pedido: fecha_pedido,
+      empresa: empresa.toString().toUpperCase(),
+      medico: medico.toString(),
+      paciente: paciente.toString().toUpperCase(),
+      dni: dni.toString(),
+      tubos: isNaN(tubos) ? 1 : tubos,
+      recibe: recibe.toString(),
+      notas: notas.toString(),
+      devolucion: "NO", // Por defecto al cargar
+      fecha_colocacion: null
+    };
+    
+    // Enviamos a Firebase
+    const firebaseId = enviarAFirestore(docData);
+    
+    if (firebaseId) {
+      // Escribimos el ID de Firebase en la Columna L (Columna 12)
+      sheet.getRange(i + 1, 12).setValue(firebaseId);
+      
+      // Enviamos el correo a través de nuestra función personalizada que activa EmailJS en Node? 
+      // Dado que ahora la app es standalone, enviar el correo desde Apps Script requeriría más configuración, 
+      // pero Firebase ya recibe el dato. El correo lo envía la web al crear, pero aquí lo subimos directo.
+      // (Opcional: Si quieres enviar emails desde el Sheets, se puede hacer con MailApp).
+    }
+  }
+}
+
+// Convierte las fechas de Google Sheets a "YYYY-MM-DD"
+function formatearFecha(fecha) {
+  if (!fecha) return '';
+  if (fecha instanceof Date) {
+    const yyyy = fecha.getFullYear();
+    const mm = String(fecha.getMonth() + 1).padStart(2, '0');
+    const dd = String(fecha.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  // Si ya es un texto, tratamos de devolverlo tal cual
+  return fecha.toString();
+}
+
+// Se conecta directamente a la API de tu base de datos
+function enviarAFirestore(docData) {
+  // Construir el payload que requiere Firebase Firestore (REST API)
+  const firestorePayload = {
+    fields: {
+      fecha_pedido: { stringValue: docData.fecha_pedido },
+      empresa: { stringValue: docData.empresa },
+      medico: { stringValue: docData.medico },
+      paciente: { stringValue: docData.paciente },
+      dni: { stringValue: docData.dni },
+      tubos: { integerValue: docData.tubos.toString() },
+      recibe: { stringValue: docData.recibe },
+      notas: { stringValue: docData.notas },
+      devolucion: { stringValue: docData.devolucion }
+    }
+  };
+
+  const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/protesis`;
+  
+  const options = {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify(firestorePayload),
+    muteHttpExceptions: true
+  };
+  
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    const text = response.getContentText();
+    const json = JSON.parse(text);
+    
+    // Status 200 significa OK
+    if (response.getResponseCode() === 200 && json.name) {
+      // "json.name" viene así: projects/cajacx-test/databases/(default)/documents/protesis/V3ab4c...
+      const partes = json.name.split('/');
+      return partes[partes.length - 1]; // Extraemos sólo el ID
+    } else {
+      Logger.log("Error al enviar a Firebase: " + text);
+      return null;
+    }
+  } catch(e) {
+    Logger.log("Excepción al ejecutar UrlFetchApp: " + e.message);
+    return null;
+  }
+}
