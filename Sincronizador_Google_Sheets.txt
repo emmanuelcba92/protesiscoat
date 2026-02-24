@@ -9,6 +9,7 @@
 //    - Guardar y aceptar los permisos de Google.
 
 const PROJECT_ID = 'cajacx-test';
+const API_KEY = 'AIzaSyCbw4diu0XCH2L22x2HF9Mxh1dOUcbg'; // Tu clave de Firebase
 
 /**
  * Agregamos un menú a la hoja de Google Sheets para facilitar el backup manual
@@ -25,8 +26,8 @@ function onOpen() {
  * Función que envía datos nuevos del Excel a la Web (Firestore)
  */
 function SincronizarProtesisAFirebase() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Prótesis');
-  if (!sheet) return SpreadsheetApp.getUi().alert("No se encontró la hoja llamada 'Prótesis'");
+  let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Prótesis');
+  if (!sheet) sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
   
   const data = sheet.getDataRange().getValues();
   
@@ -64,56 +65,64 @@ function SincronizarProtesisAFirebase() {
  * Trae todo lo que hay en la web y lo guarda/actualiza en el Excel como Backup.
  */
 function ImportarDesdeFirebase() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Prótesis');
-  if (!sheet) return SpreadsheetApp.getUi().alert("No se encontró la hoja llamada 'Prótesis'");
+  let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Prótesis');
+  if (!sheet) sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
 
-  const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/protesis?pageSize=500`;
-  const response = UrlFetchApp.fetch(url, { method: 'get', muteHttpExceptions: true });
-  const json = JSON.parse(response.getContentText());
+  const url = "https://firestore.googleapis.com/v1/projects/" + PROJECT_ID + "/databases/(default)/documents/protesis?pageSize=500&key=" + API_KEY;
   
-  if (!json.documents) return SpreadsheetApp.getUi().alert("No se encontraron documentos en la web.");
-
-  const data = sheet.getDataRange().getValues();
-  const existingIds = {};
-  data.forEach((row, index) => {
-    if (row[11]) existingIds[row[11]] = index + 1; // Columna L
-  });
-
-  let nuevos = 0;
-  let actualizados = 0;
-
-  json.documents.forEach(doc => {
-    const f = doc.fields;
-    const parts = doc.name.split('/');
-    const fbId = parts[parts.length - 1];
-
-    const rowData = [
-      f.fecha_pedido ? f.fecha_pedido.stringValue : '',
-      f.empresa ? f.empresa.stringValue : '',
-      f.medico ? f.medico.stringValue : '',
-      f.paciente ? f.paciente.stringValue : '',
-      f.dni ? f.dni.stringValue : '',
-      f.tubos ? f.tubos.integerValue : '1',
-      f.recibe ? f.recibe.stringValue : '',
-      f.notas ? f.notas.stringValue : '',
-      f.devolucion ? f.devolucion.stringValue : 'NO',
-      f.fecha_colocacion ? f.fecha_colocacion.stringValue : '',
-      f.fecha_entrega ? f.fecha_entrega.stringValue : '',
-      fbId
-    ];
-
-    if (existingIds[fbId]) {
-      // Si ya existe, actualizamos la fila (Excepto si el usuario lo editó en Sheets manualmente y no quiere sobrescribir)
-      sheet.getRange(existingIds[fbId], 1, 1, 12).setValues([rowData]);
-      actualizados++;
-    } else {
-      // Si no existe, lo agregamos al final
-      sheet.appendRow(rowData);
-      nuevos++;
+  try {
+    const response = UrlFetchApp.fetch(url, { method: 'get', muteHttpExceptions: true });
+    const text = response.getContentText();
+    const json = JSON.parse(text);
+    
+    if (response.getResponseCode() !== 200) {
+      return SpreadsheetApp.getUi().alert("Error de conexión: " + text);
     }
-  });
 
-  SpreadsheetApp.getUi().alert(`Backup finalizado.\n\nRegistros nuevos agregados: ${nuevos}\nRegistros actualizados: ${actualizados}`);
+    if (!json.documents) return SpreadsheetApp.getUi().alert("No se encontraron documentos en la web.");
+
+    const data = sheet.getDataRange().getValues();
+    const existingIds = {};
+    data.forEach((row, index) => {
+      if (row[11]) existingIds[row[11]] = index + 1; // Columna L
+    });
+
+    let nuevos = 0;
+    let actualizados = 0;
+
+    json.documents.forEach(doc => {
+      const f = doc.fields;
+      const parts = doc.name.split('/');
+      const fbId = parts[parts.length - 1];
+
+      const rowData = [
+        f.fecha_pedido ? f.fecha_pedido.stringValue : '',
+        f.empresa ? f.empresa.stringValue : '',
+        f.medico ? f.medico.stringValue : '',
+        f.paciente ? f.paciente.stringValue : '',
+        f.dni ? f.dni.stringValue : '',
+        f.tubos ? f.tubos.integerValue : '1',
+        f.recibe ? f.recibe.stringValue : '',
+        f.notas ? f.notas.stringValue : '',
+        f.devolucion ? f.devolucion.stringValue : 'NO',
+        f.fecha_colocacion ? f.fecha_colocacion.stringValue : '',
+        f.fecha_entrega ? f.fecha_entrega.stringValue : '',
+        fbId
+      ];
+
+      if (existingIds[fbId]) {
+        sheet.getRange(existingIds[fbId], 1, 1, 12).setValues([rowData]);
+        actualizados++;
+      } else {
+        sheet.appendRow(rowData);
+        nuevos++;
+      }
+    });
+
+    SpreadsheetApp.getUi().alert("Backup finalizado.\n\nRegistros nuevos: " + nuevos + "\nRegistros actualizados: " + actualizados);
+  } catch (e) {
+    SpreadsheetApp.getUi().alert("Error crítico: " + e.message);
+  }
 }
 
 function formatearFecha(fecha) {
@@ -122,7 +131,7 @@ function formatearFecha(fecha) {
     const yyyy = fecha.getFullYear();
     const mm = String(fecha.getMonth() + 1).padStart(2, '0');
     const dd = String(fecha.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
+    return yyyy + "-" + mm + "-" + dd;
   }
   return fecha.toString();
 }
@@ -144,7 +153,7 @@ function enviarAFirestore(docData) {
     }
   };
 
-  const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/protesis`;
+  const url = "https://firestore.googleapis.com/v1/projects/" + PROJECT_ID + "/databases/(default)/documents/protesis?key=" + API_KEY;
   const options = {
     method: 'post',
     contentType: 'application/json',
