@@ -573,7 +573,8 @@
         // Estado local de los datos para la tabla
         let protesisData = [];
         let smpData = [];
-        const DELETE_PIN = '546287'; // PIN estático como en Caja CX
+        const PROTESIS_DELETE_PIN = '546287'; // PIN para prótesis
+        const SMP_DELETE_PIN = '1234';       // PIN para SMP (Cámbialo si quieres)
 
         // Inicialización al cargar la página
         document.addEventListener('DOMContentLoaded', () => {
@@ -826,7 +827,7 @@
             const pin = prompt("Por razones de seguridad, ingresa el PIN para eliminar este registro:");
             if (!pin) return;
 
-            if (pin !== DELETE_PIN) {
+            if (pin !== PROTESIS_DELETE_PIN) {
                 alert("PIN incorrecto.");
                 return;
             }
@@ -1406,7 +1407,7 @@
         async function deleteSmpData(id) {
             const pin = prompt("PIN de seguridad para eliminar profesional:");
             if (!pin) return;
-            if (pin !== DELETE_PIN) return alert("PIN incorrecto");
+            if (pin !== SMP_DELETE_PIN) return alert("PIN incorrecto");
 
             if (!confirm("¿Estás seguro de eliminar este profesional y su registro de SMP?")) return;
 
