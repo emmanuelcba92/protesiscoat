@@ -23,6 +23,18 @@ function onOpen() {
 }
 
 /**
+ * Función que informa al usuario solo si hay una interfaz abierta
+ */
+function informar(mensaje) {
+  try {
+    const ui = SpreadsheetApp.getUi();
+    if (ui) ui.alert(mensaje);
+  } catch (e) {
+    Logger.log(mensaje);
+  }
+}
+
+/**
  * Función que envía datos nuevos del Excel a la Web (Firestore)
  */
 function SincronizarProtesisAFirebase() {
@@ -76,10 +88,10 @@ function ImportarDesdeFirebase() {
     const json = JSON.parse(text);
     
     if (response.getResponseCode() !== 200) {
-      return SpreadsheetApp.getUi().alert("Error de conexión: " + text);
+      return informar("Error de conexión: " + text);
     }
 
-    if (!json.documents) return SpreadsheetApp.getUi().alert("No se encontraron documentos en la web.");
+    if (!json.documents) return informar("No se encontraron documentos en la web.");
 
     const data = sheet.getDataRange().getValues();
     const existingIds = {};
@@ -119,9 +131,9 @@ function ImportarDesdeFirebase() {
       }
     });
 
-    SpreadsheetApp.getUi().alert("Backup finalizado.\n\nRegistros nuevos: " + nuevos + "\nRegistros actualizados: " + actualizados);
+    informar("Backup finalizado.\n\nRegistros nuevos: " + nuevos + "\nRegistros actualizados: " + actualizados);
   } catch (e) {
-    SpreadsheetApp.getUi().alert("Error crítico: " + e.message);
+    informar("Error crítico: " + e.message);
   }
 }
 
