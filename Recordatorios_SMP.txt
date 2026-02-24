@@ -47,13 +47,13 @@ function enviarEmail(profesional, fecha, emailPro, avisarPro) {
   const body = `
 Hola,
 
-Este es un aviso automático de Prótesis COAT.
+Este es un aviso automático de Clínica COAT.
 El Seguro de Mala Praxis del profesional **${profesional}** vence el día de mañana: **${fecha}**.
 
 Por favor, verificar que se haya presentado la documentación actualizada para evitar inconvenientes en las próximas cirugías o inspecciones.
 
 Atentamente,
-Sistema Control de Prótesis COAT
+Administración Clínica COAT
   `;
 
   // 1. Enviar siempre a administración

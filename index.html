@@ -1446,10 +1446,10 @@
                         paciente: "AVISO SMP: " + p.profesional,
                         dni: "VENCE: " + formatearFecha(p.fecha_vencimiento),
                         medico: p.profesional,
-                        empresa: "COAT SMP (Manual)",
+                        empresa: "Clínica COAT (SMP)",
                         tubos: "1",
                         recibe: "Administración",
-                        notas: `Recordatorio manual. El seguro vence el ${formatearFecha(p.fecha_vencimiento)}. Email del profesional: ${p.email || 'No registrado'}`
+                        notas: `Aviso de Clínica COAT. El seguro vence el ${formatearFecha(p.fecha_vencimiento)}. Email del profesional: ${p.email || 'No registrado'}`
                     });
                     enviados++;
                 } catch (e) {
