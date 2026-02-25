@@ -11,6 +11,7 @@
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 
     <!-- EmailJS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
@@ -118,11 +119,40 @@
 
 <body class="bg-gray-100 font-sans text-gray-800 min-h-screen">
 
+    <!-- Pantalla de Login (Google) -->
+    <div id="login-overlay"
+        class="fixed inset-0 bg-white z-[200] flex flex-col items-center justify-center p-6 text-center transition-all duration-500">
+        <div class="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
+            <img src="logo coat.png" class="h-24 mx-auto mb-6" alt="COAT Logo">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Control COAT</h1>
+            <p class="text-gray-500 mb-8 px-4">Acceso exclusivo con cuenta corporativa o autorizada de
+                <strong>Google</strong>.</p>
+
+            <button onclick="loginWithGoogle()"
+                class="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 rounded-xl px-6 py-4 text-gray-700 font-bold hover:bg-gray-50 hover:shadow-md transition active:scale-95">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="h-6 w-6"
+                    alt="Google">
+                Entrar con Google
+            </button>
+            <p class="mt-6 text-xs text-gray-400">© 2026 Clínica COAT · Sistema de Gestión de Prótesis</p>
+        </div>
+    </div>
+
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- Encabezado -->
         <header
             class="flex flex-col sm:flex-row justify-between items-center mb-8 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <h1 class="text-3xl font-bold text-gray-800 mb-4 sm:mb-0">Control de Prótesis</h1>
+            <div class="flex items-center gap-4">
+                <h1 class="text-3xl font-bold text-gray-800">Control de Prótesis</h1>
+                <button onclick="logout()" class="text-gray-400 hover:text-rose-500 p-2 transition-colors"
+                    title="Cerrar Sesión">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1">
+                        </path>
+                    </svg>
+                </button>
+            </div>
             <div class="flex gap-8">
                 <div class="text-center">
                     <p class="text-sm text-gray-500 uppercase tracking-wider font-semibold">Total</p>
@@ -569,6 +599,21 @@
         // Inicializar Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+        const auth = firebase.auth();
+        const provider = new firebase.auth.GoogleAuthProvider();
+
+        function loginWithGoogle() {
+            auth.signInWithPopup(provider).catch(error => {
+                console.error("Error en login:", error);
+                alert("No se pudo iniciar sesión. Verifica los permisos de Firebase.");
+            });
+        }
+
+        function logout() {
+            if (confirm("¿Cerrar sesión?")) {
+                auth.signOut();
+            }
+        }
 
         // Estado local de los datos para la tabla
         let protesisData = [];
@@ -578,12 +623,21 @@
 
         // Inicialización al cargar la página
         document.addEventListener('DOMContentLoaded', () => {
+            // Observador de Autenticación
+            auth.onAuthStateChanged((user) => {
+                const overlay = document.getElementById('login-overlay');
+                if (user) {
+                    overlay.classList.add('hidden');
+                    // Traer datos solo al estar logueado
+                    fetchData();
+                    fetchSmpData();
+                } else {
+                    overlay.classList.remove('hidden');
+                }
+            });
+
             // Setear la fecha de hoy por defecto en el form
             document.getElementById('fechaPedido').valueAsDate = new Date();
-
-            // Traer datos de la base de datos
-            fetchData();
-            fetchSmpData();
 
             // Event listener buscador en tiempo real
             document.getElementById('searchInput').addEventListener('input', () => renderTable());
