@@ -1,15 +1,14 @@
-// 1. Abre tu hoja de Google Sheets.
-// 2. Ve al menú superior: "Extensiones" > "Apps Script".
-// 3. Borra todo lo que haya ahí y pega este código completo.
-// 4. Haz clic en el ícono de Guardar (el disquete).
-// 5. Ve a la izquierda al ícono del Reloj ("Desencadenadores").
-// 6. Abajo a la derecha haz clic en "+ Añadir desencadenador".
-//    - Función a ejecutar: SincronizarProtesisAFirebase
-//    - Tipo de evento: Al editarse.
-//    - Guardar y aceptar los permisos de Google.
-
-const PROJECT_ID = 'cajacx-test';
-const API_KEY = 'AIzaSyCbw4diu0XCH2L22x2HF9Mxh1dOUcbg'; // Tu clave de Firebase
+/**
+ * CONFIGURACIÓN DE SEGURIDAD (CON CUENTA DE SERVICIO)
+ * --------------------------------------------------
+ * Para que este script funcione con las nuevas reglas, usamos la "Cuenta de Servicio".
+ * Copia los datos de tu archivo 'serviceAccountKey.json' aquí abajo:
+ */
+const SERVICE_ACCOUNT = {
+  "client_email": "firebase-adminsdk-fbsvc@cajacx-test.iam.gserviceaccount.com",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDtMx0Hum/p6QbI\ns7mlub/vu1mNxTxfgrCZBvuKRja41FgMdKlb270n0WKBPYryV+0RgZng7mIgZ60N\n4tALFhpDqEO+TpLqxwyZrwpWZm1qtlNxzxCkaBzM4xSjgyBpgBeRuj8WDV3y19BB\nEfSXcs+qd00OAqgDy36clOCMRcJ3NxIISOKt6+8+Wq1l3UD6oDxSlzHtB0CiJZQQ\njZHo6UumDfa9cI+q13qhG++xoCHY6QF9iL1ojHANejAwLr65CLGDtyv1ruriRX8r\n7I8nPdzbBR2Xu1fGw4t2TgOwFtStdd9ab1WHbObVdfvg/TXYw8lfT//VbO2hX220\ny+7RtobvAgMBAAECggEAUxMIwtEoKwtDJf3UMlfJAkRijAWdLHJQOXg5lucaeUdd\ngxdEzXg7Wnu5/Tu5s0DaNbxnUWEMGv9Um71pUciu8C05dKh+Sh3mqtikTThYb/xl\nY0G7OWmBVLzfWJkvO+Px3UcWmzmZQtkVBgUs3fIHC1P3N8X0ZEfcEykNL/OqtSd2\n2/TNyW0au7N28dX4tRp5xAVGQzYpCfN3aLfADnJDcAhPNkyVe7qPTI/FSPJtakBh\nzTYMP4hdgk0OgJF5PogrpdDZv0ut1Tlt2zxYLkEjiCKJshir5OVjdu2WwcQnb7YH\nTnrAgaC6nW7g7JSmZSZQjsVqGZyCzqPAYZ4tez83QQKBgQD3DSRc0ersATfLPMdF\nHBzp2MsIUoiMvNivavOHA4jCnV1KIOibEXpYDa5g0NLAX2wtqNmYAs3xkLj4C+ao\n2Cqt3rR1Q4X7SNSTkQIJVYTF+db8VovuWjxsr3pX8mibNNKL6na+BC58rttKx6uD\nHJsoRmPJLa1LxtsmLYqINXqcYQKBgQD1yp5lpXRpzllcGGmpE/UKu5FQn4rppyvX\nlZsxoQPxR6RKnMdaUvyJYo3CWnncgma7eghMwwi1Cp4T4wNfXe9VTCiPuZVMm3Ic\n4kLUTxfFgKupTkZmElb04bHB5gAe0QiE2gbEi4+9w8UgNp+Xs6nGl/J18xTwSAkA\nqBhx7+5lTwKBgQDLES1bclykQtgGoV22K8aEXON+YsDE1hFSFxo3VytZtJnS7bvk\ngnhK2mwEPoGNCKJV4Z2BuoRnVCsGEFo3XP+vzQgN/0Oo6hN5fE7tNzMcvCD/Z3A7\nqkZSm+Z3VdSwBrotsbqKs8s2R1APZpJPAftzHnC1E2uHhtvpxLNDBJpU4QKBgQCx\nMFFB+6XRhMVco+i/z7hN9WvLkEgnKrFrZ9mKTIY4ESp5802varXNILQLEQhak9MV\ngeKr28nSIYZV1cifnmsjtZRkECh2InWAJwiAX0hGw/x8QAZ2HPB89psbqgAaNx0K\nENbiJ64G4jOghmBEj2tr1CwhJYzJr1R2GbgNoybb9wKBgQCcd+TVz72fSCKroWm2\nMiP2oOsxg/butoQN+gnHY4LgRnSWDPSvU7sLMLzef4w7byz80fLGXR2v7WSe02fC\n+9Pc9jCxiYulekwCgr6BbGwWW38anEOH5YH7G/W+WnkCBcvF/orlh93ijibRwjyR\nL3vUZeq17+kgL114Sq1QMr12pQ==\n-----END PRIVATE KEY-----\n",
+  "project_id": "cajacx-test"
+};
 
 /**
  * Agregamos un menú a la hoja de Google Sheets para facilitar el backup manual
@@ -22,9 +21,6 @@ function onOpen() {
       .addToUi();
 }
 
-/**
- * Función que informa al usuario solo si hay una interfaz abierta
- */
 function informar(mensaje) {
   try {
     const ui = SpreadsheetApp.getUi();
@@ -35,17 +31,49 @@ function informar(mensaje) {
 }
 
 /**
- * Función que envía datos nuevos del Excel a la Web (Firestore)
+ * OBTIENE UN TOKEN DE ACCESO (OAUTH2)
+ * Esto es necesario para "saltarse" las reglas de seguridad usando la cuenta de servicio.
  */
+function getAccessToken() {
+  const header = JSON.stringify({
+    "alg": "RS256",
+    "typ": "JWT"
+  });
+  
+  const now = Math.floor(Date.now() / 1000);
+  const payload = JSON.stringify({
+    "iss": SERVICE_ACCOUNT.client_email,
+    "scope": "https://www.googleapis.com/auth/datastore",
+    "aud": "https://oauth2.googleapis.com/token",
+    "exp": now + 3600,
+    "iat": now
+  });
+  
+  const signatureInput = Utilities.base64EncodeWebSafe(header) + "." + Utilities.base64EncodeWebSafe(payload);
+  const signature = Utilities.computeRsaSha256Signature(signatureInput, SERVICE_ACCOUNT.private_key);
+  const jwt = signatureInput + "." + Utilities.base64EncodeWebSafe(signature);
+  
+  const response = UrlFetchApp.fetch("https://oauth2.googleapis.com/token", {
+    method: "post",
+    payload: {
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt
+    }
+  });
+  
+  return JSON.parse(response.getContentText()).access_token;
+}
+
 function SincronizarProtesisAFirebase() {
   let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Prótesis');
   if (!sheet) sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
   
   const data = sheet.getDataRange().getValues();
+  const token = getAccessToken();
   
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    const idSincronizado = row[11]; // Columna L
+    const idSincronizado = row[11];
     if (idSincronizado) continue;
     
     const paciente = row[3];
@@ -65,25 +93,26 @@ function SincronizarProtesisAFirebase() {
       fecha_entrega: formatearFecha(row[10]) || null
     };
     
-    const firebaseId = enviarAFirestore(docData);
+    const firebaseId = enviarAFirestore(docData, token);
     if (firebaseId) {
       sheet.getRange(i + 1, 12).setValue(firebaseId);
     }
   }
 }
 
-/**
- * NUEVA FUNCIÓN: BI-DIRECCIONAL (Firestore -> Excel)
- * Trae todo lo que hay en la web y lo guarda/actualiza en el Excel como Backup.
- */
 function ImportarDesdeFirebase() {
   let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Prótesis');
   if (!sheet) sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
 
-  const url = "https://firestore.googleapis.com/v1/projects/" + PROJECT_ID + "/databases/(default)/documents/protesis?pageSize=500&key=" + API_KEY;
+  const token = getAccessToken();
+  const url = `https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/protesis?pageSize=500`;
   
   try {
-    const response = UrlFetchApp.fetch(url, { method: 'get', muteHttpExceptions: true });
+    const response = UrlFetchApp.fetch(url, { 
+      method: 'get', 
+      headers: { "Authorization": "Bearer " + token },
+      muteHttpExceptions: true 
+    });
     const text = response.getContentText();
     const json = JSON.parse(text);
     
@@ -96,7 +125,7 @@ function ImportarDesdeFirebase() {
     const data = sheet.getDataRange().getValues();
     const existingIds = {};
     data.forEach((row, index) => {
-      if (row[11]) existingIds[row[11]] = index + 1; // Columna L
+      if (row[11]) existingIds[row[11]] = index + 1;
     });
 
     let nuevos = 0;
@@ -148,7 +177,7 @@ function formatearFecha(fecha) {
   return fecha.toString();
 }
 
-function enviarAFirestore(docData) {
+function enviarAFirestore(docData, token) {
   const firestorePayload = {
     fields: {
       fecha_pedido: { stringValue: docData.fecha_pedido },
@@ -165,10 +194,11 @@ function enviarAFirestore(docData) {
     }
   };
 
-  const url = "https://firestore.googleapis.com/v1/projects/" + PROJECT_ID + "/databases/(default)/documents/protesis?key=" + API_KEY;
+  const url = `https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/protesis`;
   const options = {
     method: 'post',
     contentType: 'application/json',
+    headers: { "Authorization": "Bearer " + token },
     payload: JSON.stringify(firestorePayload),
     muteHttpExceptions: true
   };

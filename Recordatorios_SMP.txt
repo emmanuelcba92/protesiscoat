@@ -1,17 +1,47 @@
-// --- CONFIGURACIÓN ---
-const PROJECT_ID = 'cajacx-test'; 
-const ADMIN_EMAIL = 'PON_AQUI_EL_EMAIL_DE_LA_CLINICA@EJEMPLO.COM'; // <--- CAMBIAR ESTO
-// ---------------------
+/**
+ * CONFIGURACIÓN DE SEGURIDAD (CON CUENTA DE SERVICIO)
+ */
+const SERVICE_ACCOUNT = {
+  "client_email": "firebase-adminsdk-fbsvc@cajacx-test.iam.gserviceaccount.com",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDtMx0Hum/p6QbI\ns7mlub/vu1mNxTxfgrCZBvuKRja41FgMdKlb270n0WKBPYryV+0RgZng7mIgZ60N\n4tALFhpDqEO+TpLqxwyZrwpWZm1qtlNxzxCkaBzM4xSjgyBpgBeRuj8WDV3y19BB\nEfSXcs+qd00OAqgDy36clOCMRcJ3NxIISOKt6+8+Wq1l3UD6oDxSlzHtB0CiJZQQ\njZHo6UumDfa9cI+q13qhG++xoCHY6QF9iL1ojHANejAwLr65CLGDtyv1ruriRX8r\n7I8nPdzbBR2Xu1fGw4t2TgOwFtStdd9ab1WHbObVdfvg/TXYw8lfT//VbO2hX220\ny+7RtobvAgMBAAECggEAUxMIwtEoKwtDJf3UMlfJAkRijAWdLHJQOXg5lucaeUdd\ngxdEzXg7Wnu5/Tu5s0DaNbxnUWEMGv9Um71pUciu8C05dKh+Sh3mqtikTThYb/xl\nY0G7OWmBVLzfWJkvO+Px3UcWmzmZQtkVBgUs3fIHC1P3N8X0ZEfcEykNL/OqtSd2\n2/TNyW0au7N28dX4tRp5xAVGQzYpCfN3aLfADnJDcAhPNkyVe7qPTI/FSPJtakBh\nzTYMP4hdgk0OgJF5PogrpdDZv0ut1Tlt2zxYLkEjiCKJshir5OVjdu2WwcQnb7YH\nTnrAgaC6nW7g7JSmZSZQjsVqGZyCzqPAYZ4tez83QQKBgQD3DSRc0ersATfLPMdF\nHBzp2MsIUoiMvNivavOHA4jCnV1KIOibEXpYDa5g0NLAX2wtqNmYAs3xkLj4C+ao\n2Cqt3rR1Q4X7SNSTkQIJVYTF+db8VovuWjxsr3pX8mibNNKL6na+BC58rttKx6uD\nHJsoRmPJLa1LxtsmLYqINXqcYQKBgQD1yp5lpXRpzllcGGmpE/UKu5FQn4rppyvX\nlZsxoQPxR6RKnMdaUvyJYo3CWnncgma7eghMwwi1Cp4T4wNfXe9VTCiPuZVMm3Ic\n4kLUTxfFgKupTkZmElb04bHB5gAe0QiE2gbEi4+9w8UgNp+Xs6nGl/J18xTwSAkA\nqBhx7+5lTwKBgQDLES1bclykQtgGoV22K8aEXON+YsDE1hFSFxo3VytZtJnS7bvk\ngnhK2mwEPoGNCKJV4Z2BuoRnVCsGEFo3XP+vzQgN/0Oo6hN5fE7tNzMcvCD/Z3A7\qkZSm+Z3VdSwBrotsbqKs8s2R1APZpJPAftzHnC1E2uHhtvpxLNDBJpU4QKBgQCx\nMFFB+6XRhMVco+i/z7hN9WvLkEgnKrFrZ9mKTIY4ESp5802varXNILQLEQhak9MV\ngeKr28nSIYZV1cifnmsjtZRkECh2InWAJwiAX0hGw/x8QAZ2HPB89psbqgAaNx0K\nENbiJ64G4jOghmBEj2tr1CwhJYzJr1R2GbgNoybb9wKBgQCcd+TVz72fSCKroWm2\nMiP2oOsxg/butoQN+gnHY4LgRnSWDPSvU7sLMLzef4w7byz80fLGXR2v7WSe02fC\n+9Pc9jCxiYulekwCgr6BbGwWW38anEOH5YH7G/W+WnkCBcvF/orlh93ijibRwjyR\nL3vUZeq17+kgL114Sq1QMr12pQ==\n-----END PRIVATE KEY-----\n",
+  "project_id": "cajacx-test"
+};
+
+const ADMIN_EMAIL = 'clinicacuret@gmail.com'; 
 
 /**
- * Esta función debe configurarse con un "Activador" (Trigger) 
- * de tipo "Reloj" para que se ejecute todos los días entre las 7am y 8am.
+ * OBTIENE UN TOKEN DE ACCESO (OAUTH2)
  */
+function getAccessToken() {
+  const header = JSON.stringify({ "alg": "RS256", "typ": "JWT" });
+  const now = Math.floor(Date.now() / 1000);
+  const payload = JSON.stringify({
+    "iss": SERVICE_ACCOUNT.client_email,
+    "scope": "https://www.googleapis.com/auth/datastore",
+    "aud": "https://oauth2.googleapis.com/token",
+    "exp": now + 3600,
+    "iat": now
+  });
+  const signatureInput = Utilities.base64EncodeWebSafe(header) + "." + Utilities.base64EncodeWebSafe(payload);
+  const signature = Utilities.computeRsaSha256Signature(signatureInput, SERVICE_ACCOUNT.private_key);
+  const jwt = signatureInput + "." + Utilities.base64EncodeWebSafe(signature);
+  const response = UrlFetchApp.fetch("https://oauth2.googleapis.com/token", {
+    method: "post",
+    payload: { grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: jwt }
+  });
+  return JSON.parse(response.getContentText()).access_token;
+}
+
 function EnviarRecordatoriosSMP() {
-  const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/smp`;
+  const token = getAccessToken();
+  const url = `https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/smp`;
   
   try {
-    const response = UrlFetchApp.fetch(url, { method: 'get', muteHttpExceptions: true });
+    const response = UrlFetchApp.fetch(url, { 
+      method: 'get', 
+      headers: { "Authorization": "Bearer " + token },
+      muteHttpExceptions: true 
+    });
     const json = JSON.parse(response.getContentText());
     
     if (response.getResponseCode() !== 200) return Logger.log("Error Firestore: " + response.getContentText());
@@ -31,7 +61,6 @@ function EnviarRecordatoriosSMP() {
       const emailPro = f.email ? f.email.stringValue : null;
       const avisarPro = f.aviso_profesional ? f.aviso_profesional.booleanValue : false;
 
-      // Si el vencimiento es mañana, enviamos el aviso
       if (vencimiento === mañanaISO) {
         enviarEmail(profesional, vencimiento, emailPro, avisarPro);
       }
@@ -50,29 +79,24 @@ Hola,
 Este es un aviso automático de Clínica COAT.
 El Seguro de Mala Praxis del profesional **${profesional}** vence el día de mañana: **${fecha}**.
 
-Por favor, verificar que se haya presentado la documentación actualizada para evitar inconvenientes en las próximas cirugías o inspecciones.
+Por favor, verificar que se haya presentado la documentación actualizada.
 
 Atentamente,
 Clínica COAT
   `;
 
-  // 1. Enviar siempre a administración
   MailApp.sendEmail(ADMIN_EMAIL, subject, body);
-  Logger.log(`Email enviado a administración por ${profesional}`);
-
-  // 2. Enviar al profesional si está configurado y tiene email
   if (avisarPro && emailPro) {
     const bodyPro = `
 Estimado/a ${profesional},
 
 Le informamos desde la Clínica COAT que su Seguro de Mala Praxis (SMP) tiene fecha de vencimiento para el día de mañana: **${fecha}**.
 
-Le solicitamos por favor que acerque o envíe la póliza actualizada a la administración para mantener su expediente al día.
+Le solicitamos por favor que acerque o envíe la póliza actualizada a la administración.
 
 Saludos cordiales,
 Administración COAT
     `;
     MailApp.sendEmail(emailPro, subject, bodyPro);
-    Logger.log(`Email enviado al profesional: ${emailPro}`);
   }
 }

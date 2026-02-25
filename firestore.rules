@@ -6,7 +6,8 @@ service cloud.firestore {
       // Y su correo está en la lista de permitidos
       allow read, write: if request.auth != null && 
         (request.auth.token.email == "clinicacuret@gmail.com" || 
-         request.auth.token.email == "emmanuel.ag92@gmail.com");
+         request.auth.token.email == "emmanuel.ag92@gmail.com" ||
+         request.auth.token.email == "firebase-adminsdk-fbsvc@cajacx-test.iam.gserviceaccount.com");
     }
   }
 }
