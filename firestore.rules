@@ -9,8 +9,8 @@ service cloud.firestore {
       allow delete: if false; 
     }
     match /smp/{document} {
-      allow read: if true;
-      allow write: if false; 
+      // Restauramos acceso total para que los profesionales puedan guardarse
+      allow read, write: if true; 
     }
   }
 }
