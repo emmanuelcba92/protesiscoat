@@ -7,6 +7,7 @@ const SERVICE_ACCOUNT = {
   "project_id": "cajacx-test"
 };
 
+// Podés poner varios mails separados por coma: 'mail1@ejemplo.com, mail2@ejemplo.com'
 const ADMIN_EMAIL = 'clinicacuret@gmail.com'; 
 
 /**
