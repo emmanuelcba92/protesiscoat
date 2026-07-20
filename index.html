@@ -126,7 +126,8 @@
             <img src="logo coat.png" class="h-24 mx-auto mb-6" alt="COAT Logo">
             <h1 class="text-3xl font-bold text-gray-800 mb-2">Control COAT</h1>
             <p class="text-gray-500 mb-8 px-4">Acceso exclusivo con cuenta corporativa o autorizada de
-                <strong>Google</strong>.</p>
+                <strong>Google</strong>.
+            </p>
 
             <button onclick="loginWithGoogle()"
                 class="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 rounded-xl px-6 py-4 text-gray-700 font-bold hover:bg-gray-50 hover:shadow-md transition active:scale-95">
@@ -278,9 +279,18 @@
         <div id="tab-smp" class="tab-content hidden">
             <!-- Acciones SMP -->
             <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-                <div class="relative w-full sm:w-2/3">
-                    <input type="text" id="searchSmp" placeholder="Buscar profesional..."
-                        class="w-full pl-4 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent transition shadow-sm">
+                <div class="flex flex-col sm:flex-row w-full sm:w-2/3 gap-4">
+                    <div class="relative w-full sm:w-1/2">
+                        <input type="text" id="searchSmp" placeholder="Buscar profesional..."
+                            class="w-full pl-4 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent transition shadow-sm">
+                    </div>
+                    <div class="relative w-full sm:w-1/2">
+                        <select id="smpFilter"
+                            class="w-full pl-4 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-turquesa focus:border-transparent transition shadow-sm bg-white font-medium text-gray-700">
+                            <option value="TODOS">Vista: Todos los profesionales</option>
+                            <option value="VENCIDOS">Vista: Solo Vencidos</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="flex gap-2 w-full sm:w-auto">
                     <button onclick="enviarRecordatoriosManual()"
@@ -645,6 +655,7 @@
 
             // Event listener filtro de estado
             document.getElementById('statusFilter').addEventListener('change', () => renderTable());
+            document.getElementById('smpFilter').addEventListener('change', () => renderSmpTable());
 
 
             // Lógica para autocompletar con <Enter> y prevenir envío accidental del formulario
@@ -1347,7 +1358,7 @@
         const smpForm = document.getElementById('smpForm');
 
         function fetchSmpData() {
-            db.collection('smp').orderBy('profesional', 'asc').onSnapshot((querySnapshot) => {
+            db.collection('smp').orderBy('fecha_vencimiento', 'asc').onSnapshot((querySnapshot) => {
                 smpData = [];
                 querySnapshot.forEach((doc) => {
                     smpData.push({ id: doc.id, ...doc.data() });
@@ -1359,14 +1370,29 @@
         function renderSmpTable() {
             const tableBody = document.getElementById('smpTableBody');
             const searchInput = document.getElementById('searchSmp');
-            if (!tableBody || !searchInput) return;
+            const smpFilter = document.getElementById('smpFilter');
+            if (!tableBody || !searchInput || !smpFilter) return;
 
             const term = searchInput.value.toLowerCase();
+            const filterValue = smpFilter.value;
             tableBody.innerHTML = '';
 
-            const filtered = smpData.filter(item =>
-                item.profesional.toLowerCase().includes(term)
-            );
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+
+            const filtered = smpData.filter(item => {
+                const matchesSearch = item.profesional.toLowerCase().includes(term);
+                if (!matchesSearch) return false;
+
+                if (filterValue === 'VENCIDOS') {
+                    const fechaVenc = new Date(item.fecha_vencimiento + 'T00:00:00');
+                    const diffTime = fechaVenc - hoy;
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    return diffDays < 0;
+                }
+
+                return true;
+            });
 
             if (filtered.length === 0) {
                 document.getElementById('loadingSmp').style.display = 'block';
@@ -1473,21 +1499,31 @@
         }
 
         async function enviarRecordatoriosManual() {
-            if (!confirm("¿Deseas realizar el chequeo de vencimientos para mañana y enviar los correos ahora (vía EmailJS)?")) return;
-
             const hoy = new Date();
             hoy.setHours(0, 0, 0, 0);
+            const hoyISO = hoy.toISOString().split('T')[0];
 
             const mañana = new Date(hoy);
             mañana.setDate(hoy.getDate() + 1);
             const mañanaISO = mañana.toISOString().split('T')[0];
 
-            const aAvisar = smpData.filter(item => item.fecha_vencimiento === mañanaISO);
+            // 1. Quienes vencen mañana
+            const aAvisarMañana = smpData.filter(item => item.fecha_vencimiento === mañanaISO);
 
-            if (aAvisar.length === 0) {
-                alert("No hay profesionales que venzan mañana (" + formatearFecha(mañanaISO) + ").");
+            // 2. Quienes ya están vencidos
+            const yaVencidos = smpData.filter(item => item.fecha_vencimiento < hoyISO);
+
+            if (aAvisarMañana.length === 0 && yaVencidos.length === 0) {
+                alert("No hay profesionales que venzan mañana ni profesionales ya vencidos.");
                 return;
             }
+
+            const confirmMessage = `¿Deseas realizar el chequeo de vencimientos y enviar los correos ahora?\n\n` +
+                `- Profesionales que vencen mañana: ${aAvisarMañana.length}\n` +
+                `- Profesionales ya vencidos hoy: ${yaVencidos.length}\n\n` +
+                `(Se enviarán correos individuales para los vencimientos de mañana y un correo resumen para los ya vencidos)`;
+
+            if (!confirm(confirmMessage)) return;
 
             const btn = event.currentTarget;
             const originalHTML = btn.innerHTML;
@@ -1495,7 +1531,9 @@
             btn.innerText = "Enviando...";
 
             let enviados = 0;
-            for (const p of aAvisar) {
+
+            // Enviar avisos individuales para mañana
+            for (const p of aAvisarMañana) {
                 try {
                     await emailjs.send("service_o4o0u4r", "template_7xhq6tq", {
                         paciente: "AVISO SMP: " + p.profesional,
@@ -1508,11 +1546,31 @@
                     });
                     enviados++;
                 } catch (e) {
-                    console.error("Error al enviar recordatorio manual:", e);
+                    console.error("Error al enviar recordatorio manual (mañana):", e);
                 }
             }
 
-            alert(`Chequeo finalizado.\nProfesionales que vencen mañana: ${aAvisar.length}\nEmails enviados con éxito: ${enviados}`);
+            // Enviar correo resumen de los ya vencidos
+            if (yaVencidos.length > 0) {
+                try {
+                    const listaVencidos = yaVencidos.map(p => `• ${p.profesional} (Venció el: ${formatearFecha(p.fecha_vencimiento)})${p.email ? ` - Email: ${p.email}` : ' - Sin email'}`).join('\n');
+                    
+                    await emailjs.send("service_o4o0u4r", "template_7xhq6tq", {
+                        paciente: "RESUMEN DE PROFESIONALES VENCIDOS",
+                        dni: `Total vencidos: ${yaVencidos.length}`,
+                        medico: "Administración COAT",
+                        empresa: "Clínica COAT (SMP)",
+                        tubos: "-",
+                        recibe: "Administración",
+                        notas: `Los siguientes profesionales tienen el Seguro de Mala Praxis vencido hoy:\n\n${listaVencidos}`
+                    });
+                    enviados++;
+                } catch (e) {
+                    console.error("Error al enviar correo resumen de vencidos:", e);
+                }
+            }
+
+            alert(`Chequeo finalizado.\nEmails enviados con éxito: ${enviados}`);
             btn.disabled = false;
             btn.innerHTML = originalHTML;
         }
