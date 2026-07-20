@@ -33,6 +33,9 @@ function getAccessToken() {
   return JSON.parse(response.getContentText()).access_token;
 }
 
+/**
+ * Función automática diaria (Trigger)
+ */
 function EnviarRecordatoriosSMP() {
   const token = getAccessToken();
   const url = `https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/smp`;
@@ -100,4 +103,118 @@ Administración COAT
     `;
     MailApp.sendEmail(emailPro, subject, bodyPro);
   }
+}
+
+/**
+ * ==========================================================
+ * APLICACIÓN WEB: SOPORTE PARA LLAMADAS DESDE EL FRONTEND
+ * ==========================================================
+ */
+
+/**
+ * Procesa peticiones POST desde la web
+ */
+function doPost(e) {
+  const result = EnviarRecordatoriosSMPManual();
+  return ContentService.createTextOutput(JSON.stringify(result))
+                       .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Procesa peticiones GET desde la web (por compatibilidad o pruebas)
+ */
+function doGet(e) {
+  const result = EnviarRecordatoriosSMPManual();
+  return ContentService.createTextOutput(JSON.stringify(result))
+                       .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Chequeo manual que se ejecuta al presionar el botón en la web
+ */
+function EnviarRecordatoriosSMPManual() {
+  const token = getAccessToken();
+  const url = `https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/smp`;
+  
+  let report = { mañana: [], vencidos: [], enviados: 0, error: null };
+  
+  try {
+    const response = UrlFetchApp.fetch(url, { 
+      method: 'get', 
+      headers: { "Authorization": "Bearer " + token },
+      muteHttpExceptions: true 
+    });
+    const json = JSON.parse(response.getContentText());
+    
+    if (response.getResponseCode() !== 200) {
+      report.error = "Error Firestore: " + response.getContentText();
+      return report;
+    }
+    if (!json.documents) {
+      report.error = "No hay documentos en SMP";
+      return report;
+    }
+
+    const hoy = new Date();
+    hoy.setHours(0,0,0,0);
+    const hoyISO = hoy.toISOString().split('T')[0];
+    
+    const mañana = new Date(hoy);
+    mañana.setDate(hoy.getDate() + 1);
+    const mañanaISO = mañana.toISOString().split('T')[0];
+
+    let mañanaList = [];
+    let vencidosList = [];
+
+    json.documents.forEach(doc => {
+      const f = doc.fields;
+      const vencimiento = f.fecha_vencimiento.stringValue;
+      const profesional = f.profesional.stringValue;
+      const emailPro = f.email ? f.email.stringValue : null;
+      const avisarPro = f.aviso_profesional ? f.aviso_profesional.booleanValue : false;
+
+      if (vencimiento === mañanaISO) {
+        mañanaList.push({ profesional, vencimiento, emailPro, avisarPro });
+      } else if (vencimiento < hoyISO) {
+        vencidosList.push({ profesional, vencimiento, emailPro });
+      }
+    });
+
+    // 1. Enviar individuales para los que vencen mañana
+    mañanaList.forEach(item => {
+      enviarEmail(item.profesional, formatearFechaSimple(item.vencimiento), item.emailPro, item.avisarPro);
+      report.enviados++;
+      report.mañana.push(item.profesional);
+    });
+
+    // 2. Enviar consolidado para los ya vencidos
+    if (vencidosList.length > 0) {
+      const subject = `⚠️ RESUMEN: Profesionales con SMP Vencido hoy`;
+      let body = `Hola,\n\nEste es un reporte automático de Clínica COAT.\nLos siguientes profesionales tienen el Seguro de Mala Praxis vencido hoy:\n\n`;
+      
+      vencidosList.forEach(item => {
+        body += `• ${item.profesional} (Venció el: ${formatearFechaSimple(item.vencimiento)})${item.emailPro ? ` - Email: ${item.emailPro}` : ' - Sin email registrado'}\n`;
+      });
+      
+      body += `\nPor favor, contactar a los profesionales para que actualicen sus pólizas.\n\nAtentamente,\nAdministración COAT`;
+      
+      MailApp.sendEmail(ADMIN_EMAIL, subject, body);
+      report.enviados++;
+      report.vencidos = vencidosList.map(item => item.profesional);
+    }
+
+  } catch (e) {
+    report.error = e.message;
+  }
+  
+  return report;
+}
+
+function formatearFechaSimple(fechaString) {
+  if (!fechaString) return '-';
+  const partes = fechaString.split('-');
+  if (partes.length === 3) {
+    return `${partes[2]}/${partes[1]}/${partes[0]}`;
+  }
+  return fechaString;
 }

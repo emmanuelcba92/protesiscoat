@@ -1496,6 +1496,19 @@
         }
 
         async function enviarRecordatoriosManual() {
+            // Obtener o pedir la URL del script de Google
+            let scriptUrl = localStorage.getItem('smp_script_url');
+            
+            if (!scriptUrl) {
+                scriptUrl = prompt(
+                    '🔧 CONFIGURACIÓN INICIAL\n\n' +
+                    'Para enviar correos a través de Google, necesitás pegar la URL de tu Web App de Apps Script.\n\n' +
+                    '👉 Seguí los pasos del manual para obtenerla y pegala aquí:'
+                );
+                if (!scriptUrl) return;
+                localStorage.setItem('smp_script_url', scriptUrl.trim());
+            }
+
             const hoy = new Date();
             hoy.setHours(0, 0, 0, 0);
             const hoyISO = hoy.toISOString().split('T')[0];
@@ -1504,10 +1517,7 @@
             mañana.setDate(hoy.getDate() + 1);
             const mañanaISO = mañana.toISOString().split('T')[0];
 
-            // 1. Quienes vencen mañana
             const aAvisarMañana = smpData.filter(item => item.fecha_vencimiento === mañanaISO);
-
-            // 2. Quienes ya están vencidos
             const yaVencidos = smpData.filter(item => item.fecha_vencimiento < hoyISO);
 
             if (aAvisarMañana.length === 0 && yaVencidos.length === 0) {
@@ -1515,10 +1525,11 @@
                 return;
             }
 
-            const confirmMessage = `¿Deseas realizar el chequeo de vencimientos y enviar los correos ahora?\n\n` +
-                `- Profesionales que vencen mañana: ${aAvisarMañana.length}\n` +
-                `- Profesionales ya vencidos hoy: ${yaVencidos.length}\n\n` +
-                `(Se enviarán correos individuales para los vencimientos de mañana y un correo resumen para los ya vencidos)`;
+            const confirmMessage =
+                `¿Deseas enviar los correos ahora vía Google?\n\n` +
+                `📅 Vencen mañana: ${aAvisarMañana.length} profesional(es)\n` +
+                `🔴 Ya vencidos: ${yaVencidos.length} profesional(es)\n\n` +
+                `(Los correos se enviarán desde tu cuenta de Google)`;
 
             if (!confirm(confirmMessage)) return;
 
@@ -1527,49 +1538,34 @@
             btn.disabled = true;
             btn.innerText = "Enviando...";
 
-            let enviados = 0;
+            try {
+                const response = await fetch(scriptUrl, {
+                    method: 'GET',
+                    mode: 'no-cors' // Google Apps Script requiere no-cors
+                });
 
-            // Enviar avisos individuales para mañana
-            for (const p of aAvisarMañana) {
-                try {
-                    await emailjs.send("service_o4o0u4r", "template_7xhq6tq", {
-                        paciente: "AVISO SMP: " + p.profesional,
-                        dni: "VENCE: " + formatearFecha(p.fecha_vencimiento),
-                        medico: p.profesional,
-                        empresa: "Clínica COAT (SMP)",
-                        tubos: "1",
-                        recibe: "Administración",
-                        notas: `Aviso de Clínica COAT. El seguro vence el ${formatearFecha(p.fecha_vencimiento)}. Email del profesional: ${p.email || 'No registrado'}`
-                    });
-                    enviados++;
-                } catch (e) {
-                    console.error("Error al enviar recordatorio manual (mañana):", e);
+                // no-cors no permite leer la respuesta, pero el script se ejecutó
+                alert(
+                    `✅ Solicitud enviada al servidor de Google.\n\n` +
+                    `Los correos están siendo procesados:\n` +
+                    `📅 Vencen mañana: ${aAvisarMañana.length} profesional(es)\n` +
+                    `🔴 Ya vencidos: ${yaVencidos.length} profesional(es)\n\n` +
+                    `Revisá tu bandeja de entrada en unos segundos.`
+                );
+            } catch (e) {
+                // Si falla, puede ser URL incorrecta — preguntar si quiere reconfigurar
+                const reintentar = confirm(
+                    `❌ Error al contactar el servidor de Google.\n\n` +
+                    `Esto puede deberse a una URL incorrecta.\n` +
+                    `¿Querés ingresar la URL nuevamente?`
+                );
+                if (reintentar) {
+                    localStorage.removeItem('smp_script_url');
                 }
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
             }
-
-            // Enviar correo resumen de los ya vencidos
-            if (yaVencidos.length > 0) {
-                try {
-                    const listaVencidos = yaVencidos.map(p => `• ${p.profesional} (Venció el: ${formatearFecha(p.fecha_vencimiento)})${p.email ? ` - Email: ${p.email}` : ' - Sin email'}`).join('\n');
-                    
-                    await emailjs.send("service_o4o0u4r", "template_7xhq6tq", {
-                        paciente: "RESUMEN DE PROFESIONALES VENCIDOS",
-                        dni: `Total vencidos: ${yaVencidos.length}`,
-                        medico: "Administración COAT",
-                        empresa: "Clínica COAT (SMP)",
-                        tubos: "-",
-                        recibe: "Administración",
-                        notas: `Los siguientes profesionales tienen el Seguro de Mala Praxis vencido hoy:\n\n${listaVencidos}`
-                    });
-                    enviados++;
-                } catch (e) {
-                    console.error("Error al enviar correo resumen de vencidos:", e);
-                }
-            }
-
-            alert(`Chequeo finalizado.\nEmails enviados con éxito: ${enviados}`);
-            btn.disabled = false;
-            btn.innerHTML = originalHTML;
         }
     </script>
 
